@@ -1,0 +1,17 @@
+<launch>
+  <node name="image_proc" pkg="image_proc" type="image_proc" ns="/cam0" />
+
+  <node name="rcars_detector_node" pkg="rcars_detector" type="rcars_detector_node">
+     <param name="tagFamily" value="4" />
+     <param name="publishDebugImage" value="true" />
+     <param name="useMultiThreading" value="true" />
+     <param name="nThreads" value="4" />
+  </node>
+  
+  <node name="rcars_estimator_node" pkg="rcars_estimator" type="rcars_estimator_node">
+    <rosparam command="load" file="$(find rcars_estimator)/config/parametersRCARS.yaml"/>
+  </node>
+  
+  <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find rcars_estimator)/config/debug.rviz" />
+  
+</launch>

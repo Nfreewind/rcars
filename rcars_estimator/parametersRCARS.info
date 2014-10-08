@@ -1,0 +1,109 @@
+IMU
+{
+	VelocityRW        0.008;0.002     ; White noise standard deviation parameter of the accelerometers [m/s²/sqrt(Hz)]
+	AccBiasRW         0.0001    ; White noise standard deviation parameter of the accelerometers bias [m/s³/sqrt(Hz)]
+	AccBiasInitStd    0.02      ; Typical range of accelerometer bias [m/s²]
+	AttitudeRW        0.003;0.000873  ; White noise standard deviation parameter of the gyroscope [rad/s/sqrt(Hz)]
+	GyrBiasRW         0.000618  ; White noise standard deviation parameter of the gyroscope bias [rad/s²/sqrt(Hz)]
+	GyrBiasInitStd    0.0175    ; Typical range of gyroscope bias [rad/s]
+	BrBMx             0.0       ; [m]
+	BrBMy             0.0       ; [m]
+	BrBMz             0.0       ; [m]
+	qMBw              1.0       ; [1]
+	qMBx              0.0       ; [1]
+	qMBy              0.0       ; [1]
+	qMBz              0.0       ; [1]
+} 
+Tag   
+{
+	PixelStd          2.0       ; Standard deviation of tag corner detector [px]
+	BrBVx            -0.0116603; -0.0135812; -0.0116603 ; [m]
+	BrBVy            -0.0570516; -0.0720721; -0.0570516 ; [m]
+	BrBVz            -0.00124568; -0.00343463; -0.00124568; [m]
+	qVBw              0.70136; 0.708591; 0.712747  ; [1]
+	qVBx              0.0083632; 0.00864368; -0.00390811; [1]
+	qVBy              -0.00390811; -0.00861083; 0.0083632 ; [1]
+	qVBz              0.712747; 0.705514; 0.70136   ; [1]
+	OutlierThreshold  15.51     ; Outlier detection threshold [1]
+	tagSize           0.161       ; Size of tag (length of edge) [m]
+	; CameraMatrix00    1.0       ;
+	; CameraMatrix01    0.0       ;
+	; CameraMatrix02    0.0       ;
+	; CameraMatrix10    0.0       ;
+	; CameraMatrix11    1.0       ;
+	; CameraMatrix12    0.0       ;
+	; CameraMatrix20    0.0       ;
+	; CameraMatrix21    0.0       ;
+	; CameraMatrix22    1.0       ;
+}
+Filter
+{
+	alpha             1e-3      ; UKF parameter
+	beta              2.0       ; UKF parameter
+	kappa             0.0       ; UKF parameter
+}
+States
+{
+	pos
+	{
+		initx         0.0       ; [m]
+		inity         0.0       ; [m]
+		initz         0.        ; [m]
+		initStdx      0.1       ; [m]
+		initStdy      0.1       ; [m]
+		initStdz      0.1       ; [m]
+		preNoi        0.0001    ; Additional prediction noise on position estimate [m/s/sqrt(Hz)]
+	}
+	vel
+	{
+		initx         0.0       ; [m/s]
+		inity         0.0       ; [m/s]
+		initz         0.0       ; [m/s]
+		initStdx      0.1       ; [m/s]
+		initStdy      0.1       ; [m/s]
+		initStdz      0.1       ; [m/s]
+	}
+	att
+	{
+		initw         1.0       ; [1]
+		initx         0.0       ; [1]
+		inity         0.0       ; [1]
+		initz         0.0       ; [1]
+		initStdx      0.1       ; [rad]
+		initStdy      0.1       ; [rad]
+		initStdz      0.1       ; [rad]
+	}
+	acb
+	{
+		initx         0.0       ; [m/s²]
+		inity         0.0       ; [m/s²]
+		initz         0.0       ; [m/s²]
+	}
+	gyb
+	{
+		initx         0.0       ; [rad/s]
+		inity         0.0       ; [rad/s]
+		initz         0.0       ; [rad/s]
+	}
+	IrIT
+	{
+		initx         0.0       ; [m]
+		inity         0.0       ; [m]
+		initz         0.0       ; [m]
+		initStdx      10.0      ; [m]
+		initStdy      10.0      ; [m]
+		initStdz      10.0      ; [m]
+		preNoi        0.0001    ; Prediction Noise on tag positions [m/s/sqrt(Hz)]
+	}
+	qTI
+	{
+		initw         1.0       ; [1]
+		initx         0.0       ; [1]
+		inity         0.0       ; [1]
+		initz         0.0       ; [1]
+		initStdx      1.0       ; [rad]
+		initStdy      1.0       ; [rad]
+		initStdz      1.0       ; [rad]
+		preNoi        0.0001    ; Prediction Noise on tag attitude [rad/s/sqrt(Hz)]
+	}
+}

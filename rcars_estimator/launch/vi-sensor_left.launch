@@ -1,0 +1,16 @@
+<launch>
+  <node name="visensor_node" pkg="visensor_node" type="visensor_node" />
+
+  <node name="image_proc" pkg="image_proc" type="image_proc" ns="/cam0" />
+
+  <node name="rcars_detector_node" pkg="rcars_detector" type="rcars_detector_node">
+     <param name="tagFamily" value="4" />
+     <param name="publishDebugImage" value="true" />
+     <param name="useMultiThreading" value="true" />
+  </node>
+  
+  <node name="rcars_estimator_node" pkg="rcars_estimator" type="rcars_estimator" />
+  
+  <node name="rviz" pkg="rviz" type="rviz" />
+  
+</launch>
