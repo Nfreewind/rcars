@@ -48,9 +48,6 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
   pubTagVis_ = nh.advertise<geometry_msgs::PoseArray>("tagPosesVis",1000);
   pubPoseSafe_ = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterPoseSafe", 1000);
   pubTwistSafe_ = nh.advertise<geometry_msgs::TwistWithCovarianceStamped>("filterTwistSafe", 1000);
-  pubPoseTag1_= nh.advertise<geometry_msgs::PoseStamped>("tag1fromBodyEstimated", 1000);
-  pubPoseTag1InvertedRotation_= nh.advertise<geometry_msgs::PoseStamped>("tag1fromBodyEstimatedInvertedRotation", 1000);
-  pubPoseTag1InvertedRotationTranslation_= nh.advertise<geometry_msgs::PoseStamped>("tag1fromBodyEstimatedInvertedRotationTranslation", 1000);
 
   // Initialize remaining filter variables
   initializationTime_ = 0;
@@ -205,61 +202,8 @@ void FilterInterface_RCARS::updateAndPublish(void){
       pose.pose.orientation.w = quat.w();
       pubPose_.publish(pose);
 
-      // Publish the tag pose 0
-      geometry_msgs::PoseStamped pose2;
-      pose2.header.stamp = ros::Time(stateSafe_.t_);
-      pose2.header.frame_id = "world";
-      pose2.pose.position.x = stateSafe_.tagPos(0)(0);
-      pose2.pose.position.y = stateSafe_.tagPos(0)(1);
-      pose2.pose.position.z = stateSafe_.tagPos(0)(2);
-      pose2.pose.orientation.x = stateSafe_.tagAtt(0).x();
-      pose2.pose.orientation.y = stateSafe_.tagAtt(0).y();
-      pose2.pose.orientation.z = stateSafe_.tagAtt(0).z();
-      pose2.pose.orientation.w = stateSafe_.tagAtt(0).w();
-      pubPose2_.publish(pose2);
-
-      // Publish the tag pose 1
-      geometry_msgs::PoseStamped pose3;
-      pose3.header.stamp = ros::Time(stateSafe_.t_);
-      pose3.header.frame_id = "world";
-      pose3.pose.position.x = stateSafe_.tagPos(1)(0);
-      pose3.pose.position.y = stateSafe_.tagPos(1)(1);
-      pose3.pose.position.z = stateSafe_.tagPos(1)(2);
-      pose3.pose.orientation.x = stateSafe_.tagAtt(1).x();
-      pose3.pose.orientation.y = stateSafe_.tagAtt(1).y();
-      pose3.pose.orientation.z = stateSafe_.tagAtt(1).z();
-      pose3.pose.orientation.w = stateSafe_.tagAtt(1).w();
-      pubPose3_.publish(pose3);
-
-      // Publish the tag pose 2
-      geometry_msgs::PoseStamped pose4;
-      pose4.header.stamp = ros::Time(stateSafe_.t_);
-      pose4.header.frame_id = "world";
-      pose4.pose.position.x = stateSafe_.tagPos(2)(0);
-      pose4.pose.position.y = stateSafe_.tagPos(2)(1);
-      pose4.pose.position.z = stateSafe_.tagPos(2)(2);
-      pose4.pose.orientation.x = stateSafe_.tagAtt(2).x();
-      pose4.pose.orientation.y = stateSafe_.tagAtt(2).y();
-      pose4.pose.orientation.z = stateSafe_.tagAtt(2).z();
-      pose4.pose.orientation.w = stateSafe_.tagAtt(2).w();
-      pubPose4_.publish(pose4);
-
       // Publish further tag poses
       publishTagPoses();
-
-	  //tag0 -> tag1
-	  // qIT1.inverse() * qIT2
-	  rot::RotationQuaternionPD qIT1 = stateSafe_.tagAtt(0);
-	  rot::RotationQuaternionPD qIT2 = stateSafe_.tagAtt(1);
-	  rot::RotationQuaternionPD qT1T2 = qIT1.inverted() * qIT2;
-	  //rot::RotationQuaternionPD qT1T2_ref(0.856, 0.029, -0.357, 0.372);
-	  //rot::RotationQuaternionPD qT1T2_ref(0.372, 0.856, 0.029, -0.357);
-
-	  if(stateSafe_.tagId_(1) == 1)
-	  {
-		  std::cout<<stateSafe_.t_<<","<<qIT1.getDisparityAngle(qIT2)<<";"<<std::endl;
-	  }
-
 
       // Get pose/twist and publish
       Eigen::Vector3d IrIB;
@@ -270,6 +214,7 @@ void FilterInterface_RCARS::updateAndPublish(void){
       Eigen::Matrix<double,12,12> Cov;
       Cov = getOutputCovariance(stateSafe_,stateSafeP_);
 
+      // Publish pose
       geometry_msgs::PoseWithCovarianceStamped msg;
       msg.pose.pose.position.x = IrIB(0);
       msg.pose.pose.position.y = IrIB(1);
@@ -286,6 +231,25 @@ void FilterInterface_RCARS::updateAndPublish(void){
       }
       msg.header.stamp = ros::Time(stateSafe_.t_);
       pubPoseSafe_.publish(msg);
+
+
+      // Publish twist
+	  geometry_msgs::TwistWithCovarianceStamped msgTwist;
+	  msgTwist.twist.twist.linear.x = BvB(0);
+	  msgTwist.twist.twist.linear.y = BvB(1);
+	  msgTwist.twist.twist.linear.z = BvB(2);
+	  msgTwist.twist.twist.angular.x = BwB(0);
+	  msgTwist.twist.twist.angular.y = BwB(1);
+	  msgTwist.twist.twist.angular.z = BwB(2);
+	  unsigned int indexArrayTwist[6] = {6,7,8,9,10,11};
+	  for(unsigned int i=0;i<6;i++){
+		for(unsigned int j=0;j<6;j++){
+		  msgTwist.twist.covariance[6*i+j] = Cov(indexArrayTwist[i],indexArrayTwist[j]);
+		}
+	  }
+	  msgTwist.header.stamp = ros::Time(stateSafe_.t_);
+	  pubTwistSafe_.publish(msgTwist);
+
     }
   }
 }
@@ -336,66 +300,12 @@ void FilterInterface_RCARS::publishTagPoses(void)
 	    tagPosesBodyMsg.poses[i].orientation.y = qBT.y();
 	    tagPosesBodyMsg.poses[i].orientation.z = qBT.z();
 	    tagPosesBodyMsg.poses[i].orientation.w = qBT.w();
-
-	    if(stateSafe_.tagId_(i) == 1)
-	    {
-	    	geometry_msgs::PoseStamped poseTag1Body;
-			poseTag1Body.header.stamp = ros::Time(stateSafe_.t_);
-			poseTag1Body.header.frame_id = "world";
-			poseTag1Body.pose = tagPosesBodyMsg.poses[i];
-			pubPoseTag1_.publish(poseTag1Body);
-
-
-			geometry_msgs::PoseStamped pubPoseTag1InvertedRotationMsg;
-			pubPoseTag1InvertedRotationMsg.header.stamp = ros::Time(stateSafe_.t_);
-			pubPoseTag1InvertedRotationMsg.header.frame_id = "world";
-			pubPoseTag1InvertedRotationMsg.pose = tagPosesBodyMsg.poses[i];
-			pubPoseTag1InvertedRotationMsg.pose.orientation.x = qBT.inverted().x();
-			pubPoseTag1InvertedRotationMsg.pose.orientation.y = qBT.inverted().y();
-			pubPoseTag1InvertedRotationMsg.pose.orientation.z = qBT.inverted().z();
-			pubPoseTag1InvertedRotationMsg.pose.orientation.w = qBT.inverted().w();
-			pubPoseTag1InvertedRotation_.publish(pubPoseTag1InvertedRotationMsg);
-
-			geometry_msgs::PoseStamped pubPoseTag1InvertedRotationTranslationMsg;
-			pubPoseTag1InvertedRotationTranslationMsg.header.stamp = ros::Time(stateSafe_.t_);
-			pubPoseTag1InvertedRotationTranslationMsg.header.frame_id = "world";
-			pubPoseTag1InvertedRotationTranslationMsg.pose = pubPoseTag1InvertedRotationMsg.pose;
-			pubPoseTag1InvertedRotationTranslationMsg.pose.position.x = -pubPoseTag1InvertedRotationTranslationMsg.pose.position.x;
-			pubPoseTag1InvertedRotationTranslationMsg.pose.position.y = -pubPoseTag1InvertedRotationTranslationMsg.pose.position.y;
-			pubPoseTag1InvertedRotationTranslationMsg.pose.position.z = -pubPoseTag1InvertedRotationTranslationMsg.pose.position.z;
-			pubPoseTag1InvertedRotationTranslation_.publish(pubPoseTag1InvertedRotationTranslationMsg);
-
-
-			// Get pose/twist and publish
-		  Eigen::Vector3d IrIB;
-		  rot::RotationQuaternionPD qIB;
-		  Eigen::Vector3d BvB;
-		  Eigen::Vector3d BwB;
-		  getOutput(stateSafe_,IrIB,qIB,BvB,BwB);
-		  Eigen::Matrix<double,12,12> Cov;
-		  Cov = getOutputCovariance(stateSafe_,stateSafeP_);
-
-		  geometry_msgs::TwistWithCovarianceStamped msgTwist;
-		  msgTwist.twist.twist.linear.x = BvB(0);
-		  msgTwist.twist.twist.linear.y = BvB(1);
-		  msgTwist.twist.twist.linear.z = BvB(2);
-		  msgTwist.twist.twist.angular.x = BwB(0);
-		  msgTwist.twist.twist.angular.y = BwB(1);
-		  msgTwist.twist.twist.angular.z = BwB(2);
-		  unsigned int indexArrayTwist[6] = {6,7,8,9,10,11};
-		  for(unsigned int i=0;i<6;i++){
-			for(unsigned int j=0;j<6;j++){
-			  msgTwist.twist.covariance[6*i+j] = Cov(indexArrayTwist[i],indexArrayTwist[j]);
-			}
-		  }
-		  msgTwist.header.stamp = ros::Time(stateSafe_.t_);
-		  pubTwistSafe_.publish(msgTwist);
-	    }
 	}
 
 	pubTagPoses_.publish(tagPosesMsg);
 	pubTagPosesBody_.publish(tagPosesBodyMsg);
 
+	// We publish again as a pose array just to make it easier to visualize in RVIZ
 	geometry_msgs::PoseArray poseArrayMsg;
 	poseArrayMsg.poses = tagPosesMsg.poses;
 	poseArrayMsg.header = tagPosesMsg.header;

@@ -122,17 +122,11 @@ class FilterInterface_RCARS: public FilterRCARS::Filter<3>{
   ros::Subscriber subTags_;
   ros::Subscriber subCameraInfo_;
   ros::Publisher pubPose_;
-  ros::Publisher pubPose2_;
-  ros::Publisher pubPose3_;
-  ros::Publisher pubPose4_;
   ros::Publisher pubTagPoses_;
   ros::Publisher pubPoseSafe_;
   ros::Publisher pubTwistSafe_;
   ros::Publisher pubTagPosesBody_;
   ros::Publisher pubTagVis_;
-  ros::Publisher pubPoseTag1_;
-  ros::Publisher pubPoseTag1InvertedRotationTranslation_;
-  ros::Publisher pubPoseTag1InvertedRotation_;
 };
 
 #endif /* FilterInterface_RCARS_HPP_ */

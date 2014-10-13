@@ -58,7 +58,7 @@ States:
   IrIT: 
     initx: 0.0 
     inity: 0.0 
-    initz: 0.0 
+    initz: 0.0
     initStdx: 10.0 
     initStdy: 10.0 
     initStdz: 10.0 

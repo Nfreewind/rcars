@@ -38,58 +38,58 @@
 namespace rot = kindr::rotations::eigen_impl;
 
 static void loadVector(Eigen::Vector3d& vec, const std::string &name){
-  ros::param::get(name + "x", vec(0));
-  ros::param::get(name + "y", vec(1));
-  ros::param::get(name + "z", vec(2));
+  if(!ros::param::get(name + "x", vec(0))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "y", vec(1))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "z", vec(2))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
 }
 static void loadQuaternion(rot::RotationQuaternionPD& q, const std::string &name){
   double w, x, y, z;
-  ros::param::get(name + "w", w);
-  ros::param::get(name + "x", x);
-  ros::param::get(name + "y", y);
-  ros::param::get(name + "z", z);
+  if(!ros::param::get(name + "w", w)) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "x", x)) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "y", y)) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "z", z)) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
 
   q.setValues(w,x,y,z);
 }
 static void loadMatrix(Eigen::Matrix3d& mat, const std::string &name){
-  ros::param::get(name + "00", mat(0,0));
-  ros::param::get(name + "01", mat(0,1));
-  ros::param::get(name + "02", mat(0,2));
-  ros::param::get(name + "10", mat(1,0));
-  ros::param::get(name + "11", mat(1,1));
-  ros::param::get(name + "12", mat(1,2));
-  ros::param::get(name + "20", mat(2,0));
-  ros::param::get(name + "21", mat(2,1));
-  ros::param::get(name + "22", mat(2,2));
+  if(!ros::param::get(name + "00", mat(0,0))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "01", mat(0,1))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "02", mat(0,2))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "10", mat(1,0))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "11", mat(1,1))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "12", mat(1,2))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "20", mat(2,0))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "21", mat(2,1))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
+  if(!ros::param::get(name + "22", mat(2,2))) { ROS_ERROR("parameter %s does not exist", name.c_str()); ROS_BREAK(); };
 }
 template<unsigned int nTags>
 void LoadParameters(const std::string &filename, FilterRCARS::Filter<nTags>* pFilter){
   typedef FilterRCARS::Filter<nTags> mtFilter;
 
-  loadVector(pFilter->BrBM_,"IMU/BrBM");
-  loadQuaternion(pFilter->qMB_,"IMU/qMB");
-  loadVector(pFilter->BrBV_,"Tag/BrBV");
-  loadQuaternion(pFilter->qVB_,"Tag/qVB");
+  loadVector(pFilter->BrBM_,"~IMU/BrBM");
+  loadQuaternion(pFilter->qMB_,"~IMU/qMB");
+  loadVector(pFilter->BrBV_,"~Tag/BrBV");
+  loadQuaternion(pFilter->qVB_,"~Tag/qVB");
 
-  ros::param::get("Tag/OutlierThreshold", pFilter->mTh_);
-  ros::param::get("Tag/tagSize", pFilter->tagSize_);
+  if(!ros::param::get("~Tag/OutlierThreshold", pFilter->mTh_)) { ROS_BREAK(); };
+  if(!ros::param::get("~Tag/tagSize", pFilter->tagSize_)) { ROS_BREAK(); };
 
-  loadVector(pFilter->initState_.pos(),"States/pos/init");
-  loadVector(pFilter->initState_.vel(),"States/vel/init");
-  loadQuaternion(pFilter->initState_.att(),"States/att/init");
-  loadVector(pFilter->initState_.acb(),"States/acb/init");
-  loadVector(pFilter->initState_.gyb(),"States/gyb/init");
+  loadVector(pFilter->initState_.pos(),"~States/pos/init");
+  loadVector(pFilter->initState_.vel(),"~States/vel/init");
+  loadQuaternion(pFilter->initState_.att(),"~States/att/init");
+  loadVector(pFilter->initState_.acb(),"~States/acb/init");
+  loadVector(pFilter->initState_.gyb(),"~States/gyb/init");
 
   for(unsigned int i=0;i<nTags;i++){
-    loadVector(pFilter->initState_.tagPos(i),"States/IrIT/init");
-    loadQuaternion(pFilter->initState_.tagAtt(i),"States/qTI/init");
+    loadVector(pFilter->initState_.tagPos(i),"~States/IrIT/init");
+    loadQuaternion(pFilter->initState_.tagAtt(i),"~States/qTI/init");
   }
 
   double accBiasInitStd;
-  ros::param::get("IMU/AccBiasInitStd", accBiasInitStd);
+  if(!ros::param::get("~IMU/AccBiasInitStd", accBiasInitStd)) { ROS_BREAK(); };
 
   double gyrBiasInitStd;
-  ros::param::get("IMU/GyrBiasInitStd", gyrBiasInitStd);
+  if(!ros::param::get("~IMU/GyrBiasInitStd", gyrBiasInitStd)) { ROS_BREAK(); };
 
   double  pos_initStdx;
   double  pos_initStdy;
@@ -107,21 +107,21 @@ void LoadParameters(const std::string &filename, FilterRCARS::Filter<nTags>* pFi
   double  qTI_initStdy;
   double  qTI_initStdz;
 
-  ros::param::get("States/pos/initStdx", pos_initStdx);
-  ros::param::get("States/pos/initStdy", pos_initStdy);
-  ros::param::get("States/pos/initStdz", pos_initStdz);
-  ros::param::get("States/vel/initStdx", vel_initStdx);
-  ros::param::get("States/vel/initStdy", vel_initStdy);
-  ros::param::get("States/vel/initStdz", vel_initStdz);
-  ros::param::get("States/att/initStdx", att_initStdx);
-  ros::param::get("States/att/initStdy", att_initStdy);
-  ros::param::get("States/att/initStdz", att_initStdz);
-  ros::param::get("States/IrIT/initStdx", IrIT_initStdx);
-  ros::param::get("States/IrIT/initStdy", IrIT_initStdy);
-  ros::param::get("States/IrIT/initStdz", IrIT_initStdz);
-  ros::param::get("States/qTI/initStdx", qTI_initStdx);
-  ros::param::get("States/qTI/initStdy", qTI_initStdy);
-  ros::param::get("States/qTI/initStdz", qTI_initStdz);
+  if(!ros::param::get("~States/pos/initStdx", pos_initStdx)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/pos/initStdy", pos_initStdy)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/pos/initStdz", pos_initStdz)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/vel/initStdx", vel_initStdx)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/vel/initStdy", vel_initStdy)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/vel/initStdz", vel_initStdz)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/att/initStdx", att_initStdx)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/att/initStdy", att_initStdy)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/att/initStdz", att_initStdz)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/IrIT/initStdx", IrIT_initStdx)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/IrIT/initStdy", IrIT_initStdy)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/IrIT/initStdz", IrIT_initStdz)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/qTI/initStdx", qTI_initStdx)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/qTI/initStdy", qTI_initStdy)) { ROS_BREAK(); };
+  if(!ros::param::get("~States/qTI/initStdz", qTI_initStdz)) { ROS_BREAK(); };
 
 
   pFilter->initStateP_.setIdentity();
@@ -146,19 +146,19 @@ void LoadParameters(const std::string &filename, FilterRCARS::Filter<nTags>* pFi
   }
 
   double velocityRW;
-  ros::param::get("IMU/VelocityRW", velocityRW);
+  if(!ros::param::get("~IMU/VelocityRW", velocityRW)) { ROS_BREAK(); };
   double accBiasRW;
-  ros::param::get("IMU/AccBiasRW", accBiasRW);
+  if(!ros::param::get("~IMU/AccBiasRW", accBiasRW)) { ROS_BREAK(); };
   double attitudeRW;
-  ros::param::get("IMU/AttitudeRW", attitudeRW);
+  if(!ros::param::get("~IMU/AttitudeRW", attitudeRW)) { ROS_BREAK(); };
   double gyrBiasRW;
-  ros::param::get("IMU/GyrBiasRW", gyrBiasRW);
+  if(!ros::param::get("~IMU/GyrBiasRW", gyrBiasRW)) { ROS_BREAK(); };
   double positionPreNoi;
-  ros::param::get("States/pos/preNoi", positionPreNoi);
+  if(!ros::param::get("~States/pos/preNoi", positionPreNoi)) { ROS_BREAK(); };
   double tagPosPreNoi;
-  ros::param::get("States/IrIT/preNoi", tagPosPreNoi);
+  if(!ros::param::get("~States/IrIT/preNoi", tagPosPreNoi)) { ROS_BREAK(); };
   double tagAttPreNoi;
-  ros::param::get("States/qTI/preNoi", tagAttPreNoi);
+  if(!ros::param::get("~States/qTI/preNoi", tagAttPreNoi)) { ROS_BREAK(); };
 
   pFilter->prenoiP_.setIdentity();
   pFilter->prenoiP_.template block<3,3>(0,0) = Eigen::Matrix3d::Identity()*pow(positionPreNoi,2);
@@ -171,7 +171,7 @@ void LoadParameters(const std::string &filename, FilterRCARS::Filter<nTags>* pFi
     pFilter->prenoiP_.template block<3,3>(15+3*(i+nTags),15+3*(i+nTags)) = Eigen::Matrix3d::Identity()*pow(tagAttPreNoi,2);
   }
   double TagPixelStd;
-  ros::param::get("Tag/PixelStd", TagPixelStd);
+  if(!ros::param::get("~Tag/PixelStd", TagPixelStd)) { ROS_BREAK(); };
   pFilter->updnoiP_.setIdentity();
   pFilter->updnoiP_ = pow(TagPixelStd,2)*pFilter->updnoiP_;
   pFilter->computeTagCorners();
