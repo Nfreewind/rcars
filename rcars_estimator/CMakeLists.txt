@@ -19,7 +19,7 @@ find_package(catkin REQUIRED
 # find_package(Boost REQUIRED COMPONENTS system)
 
 find_package(Eigen REQUIRED)
-find_package(Kindr REQUIRED)
+find_package(kindr REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -104,7 +104,7 @@ include_directories(
     include
     lightweightukf/include/ 
     ${EIGEN_INCLUDE_DIRS}
-    ${Kindr_INCLUDE_DIRS}
+    ${kindr_INCLUDE_DIRS}
     ${catkin_INCLUDE_DIRS}
 )
 
