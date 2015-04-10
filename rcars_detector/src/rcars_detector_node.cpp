@@ -306,7 +306,9 @@ int main(int argc, char **argv)
 	debugPublisher = it.advertise("/rcars_detector_image", 1);
 
 	// select tag family
-	ros::param::param<std::string>("~tagFamily", tagFamily, "4");
+	int tagFamilyInt = 0;
+	ros::param::param<int>("~tagFamily", tagFamilyInt, 4);
+	tagFamily = std::to_string(tagFamilyInt);
 	std::vector<cv::Ptr<AprilTags::TagFamily> > tagCodes;
 	selectTagFamily(tagCodes, tagFamily);
 	ROS_INFO("Using tag family %s.", tagFamily.c_str());
