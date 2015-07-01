@@ -28,6 +28,7 @@
 
 #include "FilterInterface_RCARS.hpp"
 
+
 FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
   LoadParameters("parametersRCARS.info", this);
 
@@ -294,7 +295,7 @@ void FilterInterface_RCARS::publishTagPoses(void)
 	    tagPosesBodyMsg.poses[i].position.y = BrBT(1);
 	    tagPosesBodyMsg.poses[i].position.z = BrBT(2);
 
-	    rot::RotationQuaternionPD qBT = qIB.inverted() * stateSafe_.tagAtt(i);
+	    rot::RotationQuaternionPD qBT = qIB.inverted() * stateSafe_.tagAtt(i).inverted();
 
 	    tagPosesBodyMsg.poses[i].orientation.x = qBT.x();
 	    tagPosesBodyMsg.poses[i].orientation.y = qBT.y();
