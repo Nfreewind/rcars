@@ -22,7 +22,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 find_package(OpenCV REQUIRED)
 find_package(Eigen REQUIRED)
-find_package(Kindr REQUIRED)
+find_package(kindr REQUIRED)
 
 add_message_files(FILES
   Tag.msg
@@ -48,7 +48,7 @@ include_directories(
    ${catkin_INCLUDE_DIRS} 
    ${OpenCV_INCLUDE_DIRS} 
    ${Eigen_INCLUDE_DIRS}
-   ${Kindr_INCLUDE_DIRS}
+   ${kindr_INCLUDE_DIRS}
 )
 
 add_executable(rcars_detector_node src/rcars_detector_node.cpp)
