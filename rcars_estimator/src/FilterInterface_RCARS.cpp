@@ -37,7 +37,15 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
   camInfoAvailable_ = false;
   referenceTagId_ = -1;
 
-//  LoadParameters("parametersRCARS.info", this); //TODO
+  std::string filterParameterFile;
+  if(nh.getParam("filterParameterFile", filterParameterFile))
+  {
+	  readFromInfo(filterParameterFile);
+  } else
+  {
+	  ROS_FATAL("parameter filterParameterFile is unset. Cannot load filter.");
+	  exit(-1);
+  }
   loadWorkspace(nh);
 
   // Outlier detection currently disabled

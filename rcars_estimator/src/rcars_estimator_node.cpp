@@ -10,7 +10,7 @@
 int main(int argc, char *argv[]){
   // Ros initialization and ros node handle
   ros::init(argc, argv, "estimator");
-  ros::NodeHandle n;
+  ros::NodeHandle n("~");
   ROS_INFO("Launching RCARS estimator. Will be waiting for camera_info afterwards.");
 
   // Instance of filterInterface

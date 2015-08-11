@@ -9,7 +9,7 @@
   </node>
   
   <node name="estimator" ns="rcars" pkg="rcars_estimator" type="rcars_estimator_node">
-    <rosparam command="load" file="$(find rcars_estimator)/config/parametersRCARS.yaml"/>
+    <param name="filterParameterFile" value="$(find rcars_estimator)/config/parametersRCARS.info"/>
   </node>
   
   <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find rcars_estimator)/config/debug.rviz" />
