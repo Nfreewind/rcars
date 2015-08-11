@@ -51,7 +51,10 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
    * Typedefs and using-declarations
    */
   typedef rcars::PredictionMeas mtPredictionMeas;
-  typedef rcars::TagUpdate<mtFilterState> mtUpdateMeas;
+  typedef typename rcars::TagUpdate<mtFilterState>::mtMeas mtUpdateMeas;
+
+  static constexpr int nTags_ =  mtState::nTags_;
+
   /*!
    * Constructor.
    */
@@ -94,6 +97,16 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
 
  private:
   /*!
+   * Loads workspace from config
+   */
+  void loadWorkspace(ros::NodeHandle& nh);
+
+  /*!
+    * Boolean if vision data is available
+    */
+  bool visionDataAvailable_;
+
+  /*!
    * Time of initialization
    */
   double initializationTime_;
@@ -105,24 +118,11 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
    * Flag. True if the camera info is available.
    */
   bool camInfoAvailable_;
-  /*!
-   * ID of initialization tag, -1 if no intialization tag is required.
-   */
-  int initTag_;
 
   /*!
    * ID of reference tag for workspace alignment, -1 if no reference tag is configured.
    */
   int referenceTagId_;
-
-  /*!
-   * Flag. True if the initialization tag was found.
-   */
-  bool foundInitTag_;
-  /*!
-   * Time of first observation of initialization tag
-   */
-  double foundInitTagTime_;
 
   /*!
    * Map from tagId to tag type

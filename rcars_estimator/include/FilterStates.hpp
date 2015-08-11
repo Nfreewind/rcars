@@ -141,6 +141,7 @@ class State: public LWF::State<
   using Base::E_;
   static constexpr int nDynamicTags_ = nDynamicTags;
   static constexpr int nHybridTags_ = nHybridTags;
+  static constexpr int nTags_ = nDynamicTags + nHybridTags;
   static constexpr unsigned int _pos = 0;
   static constexpr unsigned int _vel = _pos+1;
   static constexpr unsigned int _acb = _vel+1;

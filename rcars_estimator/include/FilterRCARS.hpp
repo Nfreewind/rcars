@@ -107,7 +107,7 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
    * MwIM
    */
   Eigen::Vector3d get_MwIM(const mtFilterState& filterState){
-    return filterState.state_.MwIMest_;
+    return filterState.state_.template get<mtState::_aux>().MwIMest_;
   }
 
   /*!
@@ -131,24 +131,6 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
   rot::RotationQuaternionPD get_qMI_safe(){
     return get_qMI(safe_);
   }
-
-//  /*! //TODO
-//   * Resets the filter filterState with the observation of one known tag
-//   */
-//  void resetWithTagPose(Eigen::Vector3d VrVT, rot::RotationQuaternionPD qTV, int tagId){
-//    /*!
-//     * Attitude of filter:
-//     * qIM = qTI^T*qTV*qVB*qMB^T
-//     */
-//    initState_.template get<mtState::_att>() = initState_.tagAtt(0).inverted()*qTV*qVB_*qMB_.inverted();
-//    /*!
-//     * Position of filter:
-//     * MrIM = qIM*(IrIT + qTI^T*qTV*(qVB*(BrBM - BrBV) - VrVT))
-//     */
-//    initState_.template get<mtState::_pos>() = initState_.template get<mtState::_att>().inverseRotate(Eigen::Vector3d(initState_.tagPos(0) + (initState_.tagAtt(0).inverted()*qTV).rotate(Eigen::Vector3d(qVB_.rotate(Eigen::Vector3d(BrBM_ - BrBV_)) - VrVT))));
-//    initState_.tagId_(0) = tagId;
-//    this->reset(); // call reset function
-//  }
 
   /*!
    * Resets the filter filterState.state_ with the help of an accelerometer measurement assuming no velocity
@@ -199,7 +181,7 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
     }
 
     // Add covariance of gyroscope noise
-    C.block<3,3>(9,9) = C.block<3,3>(9,9) + filterState.state_.wMeasCov_;
+    C.block<3,3>(9,9) = C.block<3,3>(9,9) + filterState.state_.template get<mtState::_aux>().wMeasCov_;
 
     return C;
   }

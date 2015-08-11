@@ -32,15 +32,12 @@
 FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
 
   // Initialize remaining filter variables
-  initializationTime_ = 0;
+  visionDataAvailable_ = false;
   isInitialized_ = false;
   camInfoAvailable_ = false;
-  initTag_ = -1;
   referenceTagId_ = -1;
-  foundInitTag_ = false;
-  foundInitTagTime_ = 0;
 
-  LoadParameters("parametersRCARS.info", this);
+//  LoadParameters("parametersRCARS.info", this); //TODO
   loadWorkspace(nh);
 
   // Outlier detection currently disabled
@@ -63,10 +60,10 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
 }
 
 
-FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
+void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 {
 	Eigen::Vector3d WrWT;
-	Eigen::QuaternionD qTW;
+	Eigen::Quaterniond qTW;
 
 	if (nh.getParam("workspace/referenceTagId", referenceTagId_))
 	{
@@ -98,45 +95,20 @@ FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 
 void FilterInterface_RCARS::initializeFilterWithIMUMeas(const mtPredictionMeas& meas, const double& t) {
   // Reset the filter using the provided accelerometer measurement
-  resetWithAccelerometer(meas.acc());
-  resetTime(t);
+  resetWithAccelerometer(meas.template get<mtPredictionMeas::_acc>(), t);
   clean(t);
   isInitialized_ = true;
-}
-
-void FilterInterface_RCARS::initializeFilterWithTag(const mtUpdateMeas& meas, const double& t) {
-  // Search the initialization tag
-  for(unsigned int i=0;i<nTags_;i++){
-    if(meas.tagId_[i]==initTag_){
-      // Extract relative position and attitude estimate of initialization tag
-      Eigen::Vector3d VrVT = meas.tagPos(i);
-      rot::RotationQuaternionPD qTV = meas.tagAtt(i);
-
-      // Reset the filter useing these relative measurements
-      resetWithTagPose(VrVT,qTV,initTag_);
-      resetTime(t);
-      clean(t);
-      isInitialized_ = true;
-    }
-  }
 }
 
 void FilterInterface_RCARS::imuCallback(const sensor_msgs::Imu::ConstPtr& imu_msg) {
   // Create and fill prediction measurement using the IMU data
   mtPredictionMeas predictionMeas;
-  predictionMeas.acc() = Eigen::Vector3d(imu_msg->linear_acceleration.x,imu_msg->linear_acceleration.y,imu_msg->linear_acceleration.z);
-  predictionMeas.gyr() = Eigen::Vector3d(imu_msg->angular_velocity.x,imu_msg->angular_velocity.y,imu_msg->angular_velocity.z);
+  predictionMeas.template get<mtPredictionMeas::_acc>() = Eigen::Vector3d(imu_msg->linear_acceleration.x,imu_msg->linear_acceleration.y,imu_msg->linear_acceleration.z);
+  predictionMeas.template get<mtPredictionMeas::_gyr>() = Eigen::Vector3d(imu_msg->angular_velocity.x,imu_msg->angular_velocity.y,imu_msg->angular_velocity.z);
 
   // Check if initialization can be performed (requires the availability of tag measurements)
-  if(!isInitialized_ && !updateMeasMap_.empty()) {
-    if(initTag_<0){ // If no initialization tag is required initialize with the IMU measurement
-      initializationTime_ = imu_msg->header.stamp.toSec();
-      initializeFilterWithIMUMeas(predictionMeas,initializationTime_);
-    } else if(foundInitTag_){ // If an initialization tag is required and it has been observed, then use the tag for initialization
-      initializationTime_ = foundInitTagTime_;
-      initializeFilterWithTag(updateMeasMap_[foundInitTagTime_],initializationTime_);
-    }
-    return;
+  if(!isInitialized_ && visionDataAvailable_) {
+      initializeFilterWithIMUMeas(predictionMeas,imu_msg->header.stamp.toSec());
   } else if(isInitialized_){ // If the filter is initialized add the IMU measurement to the filter and update
     addPredictionMeas(predictionMeas,imu_msg->header.stamp.toSec());
     updateAndPublish();
@@ -144,52 +116,42 @@ void FilterInterface_RCARS::imuCallback(const sensor_msgs::Imu::ConstPtr& imu_ms
 }
 
 void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::ConstPtr& vision_msg) {
+
+  visionDataAvailable_ = true;
+
   // Return if the camera info is not yet available
   if(!camInfoAvailable_) { return; }
 
-  // If the measurent lies in the past ignore it
-  if(isInitialized_ && vision_msg->header.stamp.toSec() <= initializationTime_) { return; }
-
-  // If the filter is not yet initialized try to find the initialization tag if it is required
-  if(!isInitialized_ && !foundInitTag_ && initTag_>=0){
-    for(unsigned int i=0;i<nTags_;i++){
-      if(vision_msg->tags[i].id==initTag_){
-        std::cout << "Found init tag!" << std::endl;
-        foundInitTag_ = true;
-        foundInitTagTime_ = vision_msg->header.stamp.toSec();
-      }
-    }
-  }
+  // Do not add measurements if not initialized
+  if (!isInitialized_) { return; }
 
   // Create and fill the update measurement
   mtUpdateMeas updateMeas;
-  // Determine the number of tags to read out
-  size_t tagMax = vision_msg->tags.size();
-  if (nTags_ < tagMax) tagMax = nTags_;
-  // Read out the tagMax first tags from the current TagArray measurement
-  for (size_t i=0; i<tagMax; i++){ // TODO: Prefer tags that are already in the filter
+
+  // Read out the tags from the current TagArray measurement
+  for (size_t i=0; i<vision_msg->tags.size(); i++){
     // Copy the tag index
-    updateMeas.tagId_ = vision_msg->tags[i].id;
+    updateMeas.template get<mtUpdateMeas::_aux>().tagId_ = vision_msg->tags[i].id;
 
     // by default tags are dynamic
-    updateMeas.tagType_ = rcars::Dyamic;
+    updateMeas.template get<mtUpdateMeas::_aux>().tagType_ = rcars::DYNAMIC_TAG;
 
     // check if tag is of special type
-    auto it = tagType_.find(updateMeas.tagId_);
+    auto it = tagType_.find(updateMeas.template get<mtUpdateMeas::_aux>().tagId_);
     if (it != tagType_.end())
     {
-    	updateMeas.tagType_ = it->second;
+    	updateMeas.template get<mtUpdateMeas::_aux>().tagType_ = it->second;
     }
 
     // Copy the corner measurements
     for (size_t j=0; j<4; j++){
-      updateMeas.cor(2*j) = vision_msg->tags[i].corners[j].x;
-      updateMeas.cor(2*j+1) = vision_msg->tags[i].corners[j].y;
+      updateMeas.template get<mtUpdateMeas::_cor>()(2*j) = vision_msg->tags[i].corners[j].x;
+      updateMeas.template get<mtUpdateMeas::_cor>()(2*j+1) = vision_msg->tags[i].corners[j].y;
     }
     // Copy the estimated pose
     const geometry_msgs::Pose& pose = vision_msg->tags[i].pose;
-    updateMeas.tagPos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
-    updateMeas.tagAtt = rot::RotationQuaternionPD(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+    updateMeas.template get<mtUpdateMeas::_aux>().tagPos_ = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
+    updateMeas.template get<mtUpdateMeas::_aux>().tagAtt_ = rot::RotationQuaternionPD(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
 
     // Add the update measurement
      addUpdateMeas(updateMeas, vision_msg->header.stamp.toSec());
@@ -201,9 +163,9 @@ void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::Const
 
 void FilterInterface_RCARS::cameraInfoCallback(const sensor_msgs::CameraInfo::ConstPtr cameraInfo_msg){
   // Readout the camera matrix from the CameraInfo message
-	for (size_t i=0; i<this->CameraMatrix_.RowsAtCompileTime; i++){
-		for (size_t j=0; j<this->CameraMatrix_.ColsAtCompileTime; j++){
-			CameraMatrix_(i,j) = cameraInfo_msg->P[i*4 + j];
+	for (size_t i=0; i<std::get<0>(mUpdates_).CameraMatrix_.RowsAtCompileTime; i++){
+		for (size_t j=0; j<std::get<0>(mUpdates_).CameraMatrix_.ColsAtCompileTime; j++){
+			std::get<0>(mUpdates_).CameraMatrix_(i,j) = cameraInfo_msg->P[i*4 + j];
 		}
 	}
 
@@ -219,21 +181,21 @@ void FilterInterface_RCARS::updateAndPublish(void){
   // Only update if the filter is initialized
   if (isInitialized_) {
     // Store the current time of the filter
-    double t = stateSafe_.t_;
+    double t = safe_.t_;
     // Do a safe update, i.e., to the prediction or update measurement which lies more back in time
     updateSafe();
     // Check if something has changed, if yes publish filter state
-    if(stateSafe_.t_>t){
+    if(safe_.t_>t){
       // get the estimated position and attitude
-      Eigen::Vector3d pos = get_IrIB_safe();
-      rot::RotationQuaternionPD quat = get_qBI_safe();
+      Eigen::Vector3d pos = get_IrIM_safe();
+      rot::RotationQuaternionPD quat = get_qMI_safe();
 
       // Publish the corresponding tf
       static tf::TransformBroadcaster tb_ekf_safe;
       tf::StampedTransform tf_transform_ekf;
       tf_transform_ekf.frame_id_ = "world";
       tf_transform_ekf.child_frame_id_ = "ekf_safe";
-      tf_transform_ekf.stamp_ = ros::Time(stateSafe_.t_);
+      tf_transform_ekf.stamp_ = ros::Time(safe_.t_);
       tf::Transform tf;
       tf.setOrigin(tf::Vector3(pos(0), pos(1), pos(2)));
       tf.setRotation(tf::Quaternion(quat.x(), quat.y(), quat.z(), quat.w()));
@@ -242,7 +204,7 @@ void FilterInterface_RCARS::updateAndPublish(void){
 
       // Publish the pose with timestamp
       geometry_msgs::PoseStamped pose;
-      pose.header.stamp = ros::Time(stateSafe_.t_);
+      pose.header.stamp = ros::Time(safe_.t_);
       pose.header.frame_id = "world";
       pose.pose.position.x = pos(0);
       pose.pose.position.y = pos(1);
@@ -257,48 +219,48 @@ void FilterInterface_RCARS::updateAndPublish(void){
       publishTagPoses();
 
       // Get pose/twist and publish
-      Eigen::Vector3d IrIB;
-      rot::RotationQuaternionPD qIB;
-      Eigen::Vector3d BvB;
-      Eigen::Vector3d BwB;
-      getOutput(stateSafe_,IrIB,qIB,BvB,BwB);
+      Eigen::Vector3d IrIM;
+      rot::RotationQuaternionPD qIM;
+      Eigen::Vector3d MvM;
+      Eigen::Vector3d MwM;
+      getOutput(safe_,IrIM,qIM,MvM,MwM);
       Eigen::Matrix<double,12,12> Cov;
-      Cov = getOutputCovariance(stateSafe_,stateSafeP_);
+      Cov = getOutputCovariance(safe_);
 
       // Publish pose
       geometry_msgs::PoseWithCovarianceStamped msg;
-      msg.pose.pose.position.x = IrIB(0);
-      msg.pose.pose.position.y = IrIB(1);
-      msg.pose.pose.position.z = IrIB(2);
-      msg.pose.pose.orientation.w = qIB.w();
-      msg.pose.pose.orientation.x = qIB.x();
-      msg.pose.pose.orientation.y = qIB.y();
-      msg.pose.pose.orientation.z = qIB.z();
+      msg.pose.pose.position.x = IrIM(0);
+      msg.pose.pose.position.y = IrIM(1);
+      msg.pose.pose.position.z = IrIM(2);
+      msg.pose.pose.orientation.w = qIM.w();
+      msg.pose.pose.orientation.x = qIM.x();
+      msg.pose.pose.orientation.y = qIM.y();
+      msg.pose.pose.orientation.z = qIM.z();
       unsigned int indexArray[6] = {0,1,2,3,4,5};
       for(unsigned int i=0;i<6;i++){
         for(unsigned int j=0;j<6;j++){
           msg.pose.covariance[6*i+j] = Cov(indexArray[i],indexArray[j]);
         }
       }
-      msg.header.stamp = ros::Time(stateSafe_.t_);
+      msg.header.stamp = ros::Time(safe_.t_);
       pubPoseSafe_.publish(msg);
 
 
       // Publish twist
 	  geometry_msgs::TwistWithCovarianceStamped msgTwist;
-	  msgTwist.twist.twist.linear.x = BvB(0);
-	  msgTwist.twist.twist.linear.y = BvB(1);
-	  msgTwist.twist.twist.linear.z = BvB(2);
-	  msgTwist.twist.twist.angular.x = BwB(0);
-	  msgTwist.twist.twist.angular.y = BwB(1);
-	  msgTwist.twist.twist.angular.z = BwB(2);
+	  msgTwist.twist.twist.linear.x = MvM(0);
+	  msgTwist.twist.twist.linear.y = MvM(1);
+	  msgTwist.twist.twist.linear.z = MvM(2);
+	  msgTwist.twist.twist.angular.x = MwM(0);
+	  msgTwist.twist.twist.angular.y = MwM(1);
+	  msgTwist.twist.twist.angular.z = MwM(2);
 	  unsigned int indexArrayTwist[6] = {6,7,8,9,10,11};
 	  for(unsigned int i=0;i<6;i++){
 		for(unsigned int j=0;j<6;j++){
 		  msgTwist.twist.covariance[6*i+j] = Cov(indexArrayTwist[i],indexArrayTwist[j]);
 		}
 	  }
-	  msgTwist.header.stamp = ros::Time(stateSafe_.t_);
+	  msgTwist.header.stamp = ros::Time(safe_.t_);
 	  pubTwistSafe_.publish(msgTwist);
 
     }
@@ -307,51 +269,52 @@ void FilterInterface_RCARS::updateAndPublish(void){
 
 void FilterInterface_RCARS::publishTagPoses(void)
 {
+	// TODO: add static tags here
 	rcars_detector::TagPoses tagPosesMsg;
-	tagPosesMsg.header.stamp = ros::Time(stateSafe_.t_);
+	tagPosesMsg.header.stamp = ros::Time(safe_.t_);
 	tagPosesMsg.header.frame_id = "world";
 	tagPosesMsg.tagIds.resize(nTags_);
 	tagPosesMsg.poses.resize(nTags_);
 
 	rcars_detector::TagPoses tagPosesBodyMsg;
-	tagPosesBodyMsg.header.stamp = ros::Time(stateSafe_.t_);
+	tagPosesBodyMsg.header.stamp = ros::Time(safe_.t_);
 	tagPosesBodyMsg.header.frame_id = "world";
 	tagPosesBodyMsg.tagIds.resize(nTags_);
 	tagPosesBodyMsg.poses.resize(nTags_);
 
 
-	Eigen::Vector3d IrIB;
-	rot::RotationQuaternionPD qIB;
-	Eigen::Vector3d BvB;
-	Eigen::Vector3d BwB;
-	getOutput(stateSafe_,IrIB,qIB,BvB,BwB);
+	Eigen::Vector3d IrIM;
+	rot::RotationQuaternionPD qIM;
+	Eigen::Vector3d MvM;
+	Eigen::Vector3d MwM;
+	getOutput(safe_,IrIM,qIM,MvM,MwM);
 
-	for(unsigned int i=0;i<nTags_;i++){
-		tagPosesMsg.tagIds[i] = stateSafe_.tagId_(i);
-		tagPosesBodyMsg.tagIds[i] = stateSafe_.tagId_(i);
-
-	    tagPosesMsg.poses[i].position.x = stateSafe_.tagPos(i)(0);
-	    tagPosesMsg.poses[i].position.y = stateSafe_.tagPos(i)(1);
-	    tagPosesMsg.poses[i].position.z = stateSafe_.tagPos(i)(2);
-	    tagPosesMsg.poses[i].orientation.x = stateSafe_.tagAtt(i).x();
-	    tagPosesMsg.poses[i].orientation.y = stateSafe_.tagAtt(i).y();
-	    tagPosesMsg.poses[i].orientation.z = stateSafe_.tagAtt(i).z();
-	    tagPosesMsg.poses[i].orientation.w = stateSafe_.tagAtt(i).w();
-
-	    Eigen::Vector3d IrBT = stateSafe_.tagPos(i) - IrIB;
-	    Eigen::Vector3d BrBT = qIB.inverted().rotate(IrBT);
-
-	    tagPosesBodyMsg.poses[i].position.x = BrBT(0);
-	    tagPosesBodyMsg.poses[i].position.y = BrBT(1);
-	    tagPosesBodyMsg.poses[i].position.z = BrBT(2);
-
-	    rot::RotationQuaternionPD qBT = qIB.inverted() * stateSafe_.tagAtt(i).inverted();
-
-	    tagPosesBodyMsg.poses[i].orientation.x = qBT.x();
-	    tagPosesBodyMsg.poses[i].orientation.y = qBT.y();
-	    tagPosesBodyMsg.poses[i].orientation.z = qBT.z();
-	    tagPosesBodyMsg.poses[i].orientation.w = qBT.w();
-	}
+//	for(unsigned int i=0;i<nTags_;i++){
+//		tagPosesMsg.tagIds[i] = safe_.tagId_(i);
+//		tagPosesBodyMsg.tagIds[i] = safe_.tagId_(i);
+//
+//	    tagPosesMsg.poses[i].position.x = safe_.tagPos(i)(0);
+//	    tagPosesMsg.poses[i].position.y = safe_.tagPos(i)(1);
+//	    tagPosesMsg.poses[i].position.z = safe_.tagPos(i)(2);
+//	    tagPosesMsg.poses[i].orientation.x = safe_.tagAtt(i).x();
+//	    tagPosesMsg.poses[i].orientation.y = safe_.tagAtt(i).y();
+//	    tagPosesMsg.poses[i].orientation.z = safe_.tagAtt(i).z();
+//	    tagPosesMsg.poses[i].orientation.w = safe_.tagAtt(i).w();
+//
+//	    Eigen::Vector3d IrMT = safe_.tagPos(i) - IrIM;
+//	    Eigen::Vector3d MrMT = qIM.inverted().rotate(IrMT);
+//
+//	    tagPosesBodyMsg.poses[i].position.x = MrMT(0);
+//	    tagPosesBodyMsg.poses[i].position.y = MrMT(1);
+//	    tagPosesBodyMsg.poses[i].position.z = MrMT(2);
+//
+//	    rot::RotationQuaternionPD qMT = qIM.inverted() * safe_.tagAtt(i).inverted();
+//
+//	    tagPosesBodyMsg.poses[i].orientation.x = qMT.x();
+//	    tagPosesBodyMsg.poses[i].orientation.y = qMT.y();
+//	    tagPosesBodyMsg.poses[i].orientation.z = qMT.z();
+//	    tagPosesBodyMsg.poses[i].orientation.w = qMT.w();
+//	}
 
 	pubTagPoses_.publish(tagPosesMsg);
 	pubTagPosesBody_.publish(tagPosesBodyMsg);
