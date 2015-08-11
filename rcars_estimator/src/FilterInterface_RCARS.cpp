@@ -28,9 +28,20 @@
 
 #include "FilterInterface_RCARS.hpp"
 
+
 FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
-//  std::string rootdir = ros::package::getPath("rcars_estimator");
-//  readFromInfo(rootdir + "/cfg/rcars.info"); // TODO
+
+  // Initialize remaining filter variables
+  initializationTime_ = 0;
+  isInitialized_ = false;
+  camInfoAvailable_ = false;
+  initTag_ = -1;
+  referenceTagId_ = -1;
+  foundInitTag_ = false;
+  foundInitTagTime_ = 0;
+
+  LoadParameters("parametersRCARS.info", this);
+  loadWorkspace(nh);
 
   // Outlier detection currently disabled
   // enableOutlierDetection();
@@ -49,14 +60,40 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
   pubTagVis_ = nh.advertise<geometry_msgs::PoseArray>("tagPosesVis",1000);
   pubPoseSafe_ = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterPoseSafe", 1000);
   pubTwistSafe_ = nh.advertise<geometry_msgs::TwistWithCovarianceStamped>("filterTwistSafe", 1000);
+}
 
-  // Initialize remaining filter variables
-  initializationTime_ = 0;
-  isInitialized_ = false;
-  camInfoAvailable_ = false;
-  initTag_ = -1;
-  foundInitTag_ = false;
-  foundInitTagTime_ = 0;
+
+FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
+{
+	Eigen::Vector3d WrWT;
+	Eigen::QuaternionD qTW;
+
+	if (nh.getParam("workspace/referenceTagId", referenceTagId_))
+	{
+
+		if(
+			nh.getParam("workspace/T_workspace_refTag/position/x", WrWT(0)) &&
+			nh.getParam("workspace/T_workspace_refTag/position/y", WrWT(1)) &&
+			nh.getParam("workspace/T_workspace_refTag/position/z", WrWT(2)) &&
+			nh.getParam("workspace/T_workspace_refTag/orientation/w", qTW.w()) &&
+			nh.getParam("workspace/T_workspace_refTag/orientation/x", qTW.x()) &&
+			nh.getParam("workspace/T_workspace_refTag/orientation/x", qTW.y()) &&
+			nh.getParam("workspace/T_workspace_refTag/orientation/y", qTW.z())
+		)
+		{
+			ROS_INFO("Found reference Tag and workspace to reference tag transformation.");
+			WrWT_ = WrWT;
+			qTW_ = rot::RotationQuaternionPD(qTW);
+		} else
+		{
+			ROS_FATAL("Found reference Tag ID but no reference tag transformation. Will assume identity");
+			WrWT_.setZero();
+			qTW_.setIdentity();
+		}
+	} else
+	{
+		ROS_INFO("No workspace reference tag ID found. Cannot give workspace information.");
+	}
 }
 
 void FilterInterface_RCARS::initializeFilterWithIMUMeas(const mtPredictionMeas& meas, const double& t) {
@@ -132,20 +169,33 @@ void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::Const
   // Read out the tagMax first tags from the current TagArray measurement
   for (size_t i=0; i<tagMax; i++){ // TODO: Prefer tags that are already in the filter
     // Copy the tag index
-    updateMeas.tagId_(i) = vision_msg->tags[i].id;
+    updateMeas.tagId_ = vision_msg->tags[i].id;
+
+    // by default tags are dynamic
+    updateMeas.tagType_ = rcars::Dyamic;
+
+    // check if tag is of special type
+    auto it = tagType_.find(updateMeas.tagId_);
+    if (it != tagType_.end())
+    {
+    	updateMeas.tagType_ = it->second;
+    }
+
     // Copy the corner measurements
     for (size_t j=0; j<4; j++){
-      updateMeas.cor(i,2*j) = vision_msg->tags[i].corners[j].x;
-      updateMeas.cor(i,2*j+1) = vision_msg->tags[i].corners[j].y;
+      updateMeas.cor(2*j) = vision_msg->tags[i].corners[j].x;
+      updateMeas.cor(2*j+1) = vision_msg->tags[i].corners[j].y;
     }
     // Copy the estimated pose
     const geometry_msgs::Pose& pose = vision_msg->tags[i].pose;
-    updateMeas.tagPos(i) = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
-    updateMeas.tagAtt(i) = rot::RotationQuaternionPD(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+    updateMeas.tagPos = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
+    updateMeas.tagAtt = rot::RotationQuaternionPD(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+
+    // Add the update measurement
+     addUpdateMeas(updateMeas, vision_msg->header.stamp.toSec());
   }
 
   // Add the update measurement and update
-  addUpdateMeas(updateMeas, vision_msg->header.stamp.toSec());
   updateAndPublish();
 }
 
@@ -295,7 +345,7 @@ void FilterInterface_RCARS::publishTagPoses(void)
 	    tagPosesBodyMsg.poses[i].position.y = BrBT(1);
 	    tagPosesBodyMsg.poses[i].position.z = BrBT(2);
 
-	    rot::RotationQuaternionPD qBT = qIB.inverted() * stateSafe_.tagAtt(i);
+	    rot::RotationQuaternionPD qBT = qIB.inverted() * stateSafe_.tagAtt(i).inverted();
 
 	    tagPosesBodyMsg.poses[i].orientation.x = qBT.x();
 	    tagPosesBodyMsg.poses[i].orientation.y = qBT.y();

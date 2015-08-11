@@ -25,7 +25,7 @@ Tag
 	qVBy              -0.00390811; -0.00861083; 0.0083632 ; [1]
 	qVBz              0.712747; 0.705514; 0.70136   ; [1]
 	OutlierThreshold  15.51     ; Outlier detection threshold [1]
-	tagSize           0.161       ; Size of tag (length of edge) [m]
+	tagSize           0.232       ; Size of tag (length of edge) [m]
 	; CameraMatrix00    1.0       ;
 	; CameraMatrix01    0.0       ;
 	; CameraMatrix02    0.0       ;

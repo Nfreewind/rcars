@@ -4,7 +4,7 @@
   <node name="image_proc" pkg="image_proc" type="image_proc" ns="/cam0" />
 
   <node name="detector" ns="rcars" pkg="rcars_detector" type="rcars_detector_node">
-     <param name="tagFamily" value="4" />
+     <param name="tagFamily" value="1" />
      <param name="publishDebugImage" value="true" />
      <param name="useMultiThreading" value="true" />
      <param name="nThreads" value="4" />

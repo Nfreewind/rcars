@@ -109,6 +109,12 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
    * ID of initialization tag, -1 if no intialization tag is required.
    */
   int initTag_;
+
+  /*!
+   * ID of reference tag for workspace alignment, -1 if no reference tag is configured.
+   */
+  int referenceTagId_;
+
   /*!
    * Flag. True if the initialization tag was found.
    */
@@ -117,6 +123,21 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
    * Time of first observation of initialization tag
    */
   double foundInitTagTime_;
+
+  /*!
+   * Map from tagId to tag type
+   */
+  std::map<int, rcars::TagType> tagType_;
+
+  /*!
+   * Orientation of workspace with respect to reference tag
+   */
+  rot::RotationQuaternionPD qTW_;
+
+  /*!
+   * Location of reference tag in workspace
+   */
+  Eigen::Vector3d WrWT_;
 
 
   /*!
