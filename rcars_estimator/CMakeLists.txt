@@ -8,6 +8,7 @@ set(CMAKE_BUILD_TYPE RELEASE)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED
+	lightweight_filtering
     roscpp
     sensor_msgs
     rcars_detector
@@ -115,6 +116,7 @@ include_directories(
 
 ## Declare a cpp executable
 add_executable(rcars_estimator_node src/rcars_estimator_node.cpp src/FilterInterface_RCARS.cpp)
+add_executable(rcars_test src/rcars_test.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes

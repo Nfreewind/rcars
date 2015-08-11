@@ -29,11 +29,12 @@
 #include "FilterInterface_RCARS.hpp"
 
 FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
-  LoadParameters("parametersRCARS.info", this);
+//  std::string rootdir = ros::package::getPath("rcars_estimator");
+//  readFromInfo(rootdir + "/cfg/rcars.info"); // TODO
 
   // Outlier detection currently disabled
   // enableOutlierDetection();
-  disableOutlierDetection();
+//  disableOutlierDetection(); // TODO
 
   // Reset the filter
   reset();

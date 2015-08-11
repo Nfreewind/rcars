@@ -44,10 +44,14 @@
 #include <rcars_detector/TagArray.h>
 #include <rcars_detector/TagPoses.h>
 
-#include "ParameterLoader.hpp"
 
-class FilterInterface_RCARS: public FilterRCARS::Filter<3>{
+class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
  public:
+  /*!
+   * Typedefs and using-declarations
+   */
+  typedef rcars::PredictionMeas mtPredictionMeas;
+  typedef rcars::TagUpdate<mtFilterState> mtUpdateMeas;
   /*!
    * Constructor.
    */
