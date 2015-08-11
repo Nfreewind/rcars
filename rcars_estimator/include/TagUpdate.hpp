@@ -92,6 +92,7 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
   typedef LWF::Update<TagInnovation<typename FILTERSTATE::mtState>,FILTERSTATE,TagUpdateMeas<typename FILTERSTATE::mtState>,TagUpdateNoise<typename FILTERSTATE::mtState>,
                       TagOutlierDetection<typename FILTERSTATE::mtState>,false> Base;
   using Base::doubleRegister_;
+  using Base::intRegister_;
   using Base::updnoiP_;
   typedef typename Base::mtState mtState;
   typedef typename Base::mtFilterState mtFilterState;
@@ -118,14 +119,17 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
     tagSize_ = 0.1; // TODO: register
     computeTagCorners();
     CameraMatrix_.setIdentity();
-//    int ind; // TODO
-//    for(int i=0;i<FILTERSTATE::mtState::nMax_;i++){
-//      ind = mtNoise::template getId<mtNoise::_cor>(i);
-//      doubleRegister_.removeScalarByVar(updnoiP_(ind,ind));
-//      doubleRegister_.removeScalarByVar(updnoiP_(ind+1,ind+1));
-//      doubleRegister_.registerScalar("UpdateNoise.cor",updnoiP_(ind,ind));
-//      doubleRegister_.registerScalar("UpdateNoise.cor",updnoiP_(ind+1,ind+1));
-//    }
+    for(int i=0;i<8;i++){
+      const int ind = mtNoise::template getId<mtNoise::_cor>()+i;
+      doubleRegister_.removeScalarByVar(updnoiP_(ind,ind));
+      doubleRegister_.registerScalar("PixelStd",updnoiP_(ind,ind));
+    }
+    intRegister_.removeScalarByStr("maxNumIteration");
+    doubleRegister_.removeScalarByStr("alpha");
+    doubleRegister_.removeScalarByStr("beta");
+    doubleRegister_.removeScalarByStr("kappa");
+    doubleRegister_.removeScalarByStr("updateVecNormTermination");
+    doubleRegister_.registerScalar("tagSize",tagSize_);
   };
   ~TagUpdate(){};
   void refreshProperties(){

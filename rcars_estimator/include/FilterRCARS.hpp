@@ -63,10 +63,7 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
   using Base::reset;
   using Base::safe_;
   using Base::front_;
-//  using Base::boolRegister_;
-//  using Base::intRegister_;
-//  using Base::doubleRegister_;
-//  using Base::stringRegister_;
+  using Base::doubleRegister_;
   using Base::mUpdates_;
   using Base::mPrediction_;
   typedef typename Base::mtFilterState mtFilterState;
@@ -76,9 +73,43 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
    * Constructor
    */
   FilterRCARS(){
-    // TODO register
     std::get<0>(mUpdates_).outlierDetection_.setEnabledAll(true);
     reset(0.0);
+    int ind;
+    for(int i=0;i<mtState::nDynamicTags_;i++){
+      doubleRegister_.removeScalarByVar(init_.state_.template get<mtState::_dyp>(i)(0));
+      doubleRegister_.removeScalarByVar(init_.state_.template get<mtState::_dyp>(i)(1));
+      doubleRegister_.removeScalarByVar(init_.state_.template get<mtState::_dyp>(i)(2));
+      doubleRegister_.removeScalarByVar(init_.state_.template get<mtState::_dya>(i).toImplementation().w());
+      doubleRegister_.removeScalarByVar(init_.state_.template get<mtState::_dya>(i).toImplementation().x());
+      doubleRegister_.removeScalarByVar(init_.state_.template get<mtState::_dya>(i).toImplementation().y());
+      doubleRegister_.removeScalarByVar(init_.state_.template get<mtState::_dya>(i).toImplementation().z());
+      ind = mtState::template getId<mtState::_dyp>(i);
+      doubleRegister_.removeScalarByVar(init_.cov_(ind+0,ind+0));
+      doubleRegister_.removeScalarByVar(init_.cov_(ind+1,ind+1));
+      doubleRegister_.removeScalarByVar(init_.cov_(ind+2,ind+2));
+      ind = mtState::template getId<mtState::_dya>(i);
+      doubleRegister_.removeScalarByVar(init_.cov_(ind+0,ind+0));
+      doubleRegister_.removeScalarByVar(init_.cov_(ind+1,ind+1));
+      doubleRegister_.removeScalarByVar(init_.cov_(ind+2,ind+2));
+    }
+    for(int i=0;i<mtState::nHybridTags_;i++){
+      ind = mtState::template getId<mtState::_hya>(i);
+      doubleRegister_.removeScalarByVar(init_.cov_(ind+0,ind+0));
+      doubleRegister_.removeScalarByVar(init_.cov_(ind+1,ind+1));
+      doubleRegister_.removeScalarByVar(init_.state_.template get<mtState::_hya>(i).q_.toImplementation().w());
+      doubleRegister_.removeScalarByVar(init_.state_.template get<mtState::_hya>(i).q_.toImplementation().x());
+      doubleRegister_.removeScalarByVar(init_.state_.template get<mtState::_hya>(i).q_.toImplementation().y());
+      doubleRegister_.removeScalarByVar(init_.state_.template get<mtState::_hya>(i).q_.toImplementation().z());
+    }
+    mPrediction_.doubleRegister_.removeScalarByStr("alpha");
+    mPrediction_.doubleRegister_.removeScalarByStr("beta");
+    mPrediction_.doubleRegister_.removeScalarByStr("kappa");
+
+    for(int i=0;i<3;i++){
+      std::get<0>(mUpdates_).doubleRegister_.registerScalar("initTagPosCov",init_.dynamicTagInitCov_(i,i));
+      std::get<0>(mUpdates_).doubleRegister_.registerScalar("initTagAttCov",init_.dynamicTagInitCov_(i+3,i+3));
+    }
   }
   void refreshProperties(){
   };
