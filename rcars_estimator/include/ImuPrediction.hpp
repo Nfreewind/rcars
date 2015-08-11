@@ -28,17 +28,31 @@ class ImuPrediction: public LWF::Prediction<FILTERSTATE>{
    */
   const V3D g_;
   ImuPrediction():g_(0,0,-9.81){
-//    int ind; //TODO
-//    for(int i=0;i<mtState::nMax_;i++){
-//      ind = mtNoise::template getId<mtNoise::_nor>(i);
-//      doubleRegister_.removeScalarByVar(prenoiP_(ind,ind));
-//      doubleRegister_.removeScalarByVar(prenoiP_(ind+1,ind+1));
-//      doubleRegister_.registerScalar("PredictionNoise.nor",prenoiP_(ind,ind));
-//      doubleRegister_.registerScalar("PredictionNoise.nor",prenoiP_(ind+1,ind+1));
-//      ind = mtNoise::template getId<mtNoise::_dep>(i);
-//      doubleRegister_.removeScalarByVar(prenoiP_(ind,ind));
-//      doubleRegister_.registerScalar("PredictionNoise.dep",prenoiP_(ind,ind));
-//    }
+    int ind;
+    for(int i=0;i<mtState::nDynamicTags_;i++){
+      ind = mtState::template getId<mtState::_dyp>(i);
+      doubleRegister_.removeScalarByVar(prenoiP_(ind+0,ind+0));
+      doubleRegister_.removeScalarByVar(prenoiP_(ind+1,ind+1));
+      doubleRegister_.removeScalarByVar(prenoiP_(ind+2,ind+2));
+      doubleRegister_.registerScalar("PredictionNoise.dyp_0",prenoiP_(ind+0,ind+0));
+      doubleRegister_.registerScalar("PredictionNoise.dyp_1",prenoiP_(ind+1,ind+1));
+      doubleRegister_.registerScalar("PredictionNoise.dyp_2",prenoiP_(ind+2,ind+2));
+      ind = mtState::template getId<mtState::_dya>(i);
+      doubleRegister_.removeScalarByVar(prenoiP_(ind+0,ind+0));
+      doubleRegister_.removeScalarByVar(prenoiP_(ind+1,ind+1));
+      doubleRegister_.removeScalarByVar(prenoiP_(ind+2,ind+2));
+      doubleRegister_.registerScalar("PredictionNoise.dya_0",prenoiP_(ind+0,ind+0));
+      doubleRegister_.registerScalar("PredictionNoise.dya_1",prenoiP_(ind+1,ind+1));
+      doubleRegister_.registerScalar("PredictionNoise.dya_2",prenoiP_(ind+2,ind+2));
+
+    }
+    for(int i=0;i<mtState::nHybridTags_;i++){
+      ind = mtState::template getId<mtState::_hya>(i);
+      doubleRegister_.removeScalarByVar(prenoiP_(ind+0,ind+0));
+      doubleRegister_.removeScalarByVar(prenoiP_(ind+1,ind+1));
+      doubleRegister_.registerScalar("PredictionNoise.hya_0",prenoiP_(ind+0,ind+0));
+      doubleRegister_.registerScalar("PredictionNoise.hya_1",prenoiP_(ind+1,ind+1));
+    }
     disablePreAndPostProcessingWarning_ = true;
   };
   ~ImuPrediction(){};

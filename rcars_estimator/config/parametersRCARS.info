@@ -2,104 +2,41 @@ Init
 {
     Covariance
     {
-        pos_0 1
-        pos_1 1
-        pos_2 1
-        vel_0 1
-        vel_1 1
-        vel_2 1
-        acb_0 1
-        acb_1 1
-        acb_2 1
-        gyb_0 1
-        gyb_1 1
-        gyb_2 1
-        vep_0 1
-        vep_1 1
-        vep_2 1
-        att_0 1
-        att_1 1
-        att_2 1
-        vea_0 1
-        vea_1 1
-        vea_2 1
-        dyp_0 1
-        dyp_1 1
-        dyp_2 1
-        dyp_3 1
-        dyp_4 1
-        dyp_5 1
-        dyp_6 1
-        dyp_7 1
-        dyp_8 1
-        dya_0 1
-        dya_1 1
-        dya_2 1
-        dya_3 1
-        dya_4 1
-        dya_5 1
-        dya_6 1
-        dya_7 1
-        dya_8 1
-        hya_0 1
-        hya_1 1
-        hya_2 1
-        hya_3 1
-        hya_4 1
-        hya_5 1
-        hya_6 1
-        hya_7 1
+        pos_0 0.0001
+        pos_1 0.0001
+        pos_2 0.0001
+        vel_0 1.0
+        vel_1 1.0
+        vel_2 1.0
+        acb_0 4e-4
+        acb_1 4e-4
+        acb_2 4e-4
+        gyb_0 3e-4
+        gyb_1 3e-4
+        gyb_2 3e-4
+        vep_0 0.01
+        vep_1 0.01
+        vep_2 0.01
+        att_0 0.1
+        att_1 0.1
+        att_2 0.1
+        vea_0 0.01
+        vea_1 0.01
+        vea_2 0.01
     }
     State
     {
-        hya_0_x 0
-        hya_0_y 0
-        hya_0_z 0
-        hya_0_w 1
-        hya_1_x 0
-        hya_1_y 0
-        hya_1_z 0
-        hya_1_w 1
-        hya_2_x 0
-        hya_2_y 0
-        hya_2_z 0
-        hya_2_w 1
-        hya_3_x 0
-        hya_3_y 0
-        hya_3_z 0
-        hya_3_w 1
-        dya_0_x 0
-        dya_0_y 0
-        dya_0_z 0
-        dya_0_w 1
-        dya_1_x 0
-        dya_1_y 0
-        dya_1_z 0
-        dya_1_w 1
-        dya_2_x 0
-        dya_2_y 0
-        dya_2_z 0
-        dya_2_w 1
-        dyp_0_0 0
-        dyp_0_1 0
-        dyp_0_2 0
-        dyp_1_0 0
-        dyp_1_1 0
-        dyp_1_2 0
-        dyp_2_0 0
-        dyp_2_1 0
-        dyp_2_2 0
-        vea_x 0
-        vea_y 0
-        vea_z 0
-        vea_w 1
+        vea_x 0.0083632
+        vea_y -0.00390811
+        vea_z 0.712747
+        vea_w 0.70136
         att_x 0
         att_y 0
         att_z 0
         att_w 1
-        vep_0 0
-        vep_1 0
-        vep_2 0
+        vep_0 -0.0116603
+        vep_1 -0.0570516
+        vep_2 -0.00124568
         gyb_0 0
         gyb_1 0
         gyb_2 0
@@ -116,77 +53,44 @@ Init
 }
 Update0
 {
-    maxNumIteration 10
-    UpdateNoise
-    {
-        cor_0 0.0001
-        cor_1 0.0001
-        cor_2 0.0001
-        cor_3 0.0001
-        cor_4 0.0001
-        cor_5 0.0001
-        cor_6 0.0001
-        cor_7 0.0001
-    }
-    alpha 0.001
-    beta 2
-    kappa 0
-    updateVecNormTermination 1e-06
+    PixelStd 2.0
     MahalanobisTh0 15.5823996
+    tagSize 0.232
+    initTagPosCov 10.0
+    initTagAttCov 1.0
 }
 Prediction
 {
     PredictionNoise
     {
-        pos_0 0.0001
-        pos_1 0.0001
-        pos_2 0.0001
-        vel_0 0.0001
-        vel_1 0.0001
-        vel_2 0.0001
-        acb_0 0.0001
-        acb_1 0.0001
-        acb_2 0.0001
-        gyb_0 0.0001
-        gyb_1 0.0001
-        gyb_2 0.0001
-        vep_0 0.0001
-        vep_1 0.0001
-        vep_2 0.0001
-        att_0 0.0001
-        att_1 0.0001
-        att_2 0.0001
-        vea_0 0.0001
-        vea_1 0.0001
-        vea_2 0.0001
+        pos_0 1e-4
+        pos_1 1e-4
+        pos_2 1e-4
+        vel_0 4e-5 ;4e-6
+        vel_1 4e-5
+        vel_2 4e-5
+        acb_0 1e-8
+        acb_1 1e-8
+        acb_2 1e-8
+        gyb_0 3.8e-7
+        gyb_1 3.8e-7
+        gyb_2 3.8e-7
+        vep_0 1e-4
+        vep_1 1e-4
+        vep_2 1e-4
+        att_0 7.6e-6 ;7.6e-7
+        att_1 7.6e-6
+        att_2 7.6e-6
+        vea_0 1e-8
+        vea_1 1e-8
+        vea_2 1e-8
         dyp_0 0.0001
         dyp_1 0.0001
         dyp_2 0.0001
-        dyp_3 0.0001
-        dyp_4 0.0001
-        dyp_5 0.0001
-        dyp_6 0.0001
-        dyp_7 0.0001
-        dyp_8 0.0001
         dya_0 0.0001
         dya_1 0.0001
         dya_2 0.0001
-        dya_3 0.0001
-        dya_4 0.0001
-        dya_5 0.0001
-        dya_6 0.0001
-        dya_7 0.0001
-        dya_8 0.0001
         hya_0 0.0001
         hya_1 0.0001
-        hya_2 0.0001
-        hya_3 0.0001
-        hya_4 0.0001
-        hya_5 0.0001
-        hya_6 0.0001
-        hya_7 0.0001
     }
-    alpha 0.001
-    beta 2
-    kappa 0
 }
