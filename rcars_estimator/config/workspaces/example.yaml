@@ -1,4 +1,7 @@
 workspace :
+  
+  calibratedTags : [0, 1, 2]
+
   referenceTagId : 0
 
   T_workspace_refTag :
@@ -14,7 +17,6 @@ workspace :
 
 tags:
   tag0:
-    id : 1
     type : static
     pose:
        position:
@@ -27,8 +29,7 @@ tags:
           y : 0.0
           z : 0.0
 
-  tag1: 
-    id : 1
+  tag1:
     type : static
     pose:
        position:
@@ -42,8 +43,7 @@ tags:
           z : 0.0
 
   tag2: 
-    id : 2
-    type : hybrid 
+    type : dynamic 
     pose:
        position:
           x : 0.0

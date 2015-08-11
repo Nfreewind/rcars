@@ -99,6 +99,50 @@ void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 	{
 		ROS_INFO("No workspace reference tag ID found. Cannot give workspace information.");
 	}
+
+	std::vector<int> calibratedTags;
+	if (!nh.getParam("workspace/calibratedTags", calibratedTags))
+	{
+		ROS_FATAL("No calibrated tags found. Creating empty workspace.");
+		return;
+	}
+
+	for (size_t i=0; i<calibratedTags.size(); i++)
+	{
+		int tagId = calibratedTags[i];
+		std::string parameterBaseName = "tags/tag" + std::to_string(tagId);
+		std::string tagType;
+		if (
+			nh.getParam(parameterBaseName+"/type", tagType) &&
+			nh.getParam(parameterBaseName+"/position/x", IrIT_[tagId](0)) &&
+			nh.getParam(parameterBaseName+"/position/x", IrIT_[tagId](1)) &&
+			nh.getParam(parameterBaseName+"/position/x", IrIT_[tagId](2))
+		)
+		{
+			if (tagType == "static")
+			{
+				tagType_[tagId] = rcars::STATIC_TAG;
+				Eigen::Quaterniond rot;
+				if (nh.getParam(parameterBaseName+"/orientation/w", rot.w()) &&
+					nh.getParam(parameterBaseName+"/orientation/x", rot.x()) &&
+					nh.getParam(parameterBaseName+"/orientation/y", rot.y()) &&
+					nh.getParam(parameterBaseName+"/orientation/z", rot.z())
+				)
+				{
+					qTI_[tagId] = rot::RotationQuaternionPD(rot);
+				} else
+				{
+					ROS_FATAL("Could not get orientation for tag %d", tagId);
+					exit(-1);
+				}
+			}
+			else
+			{
+				ROS_FATAL("Unknown tag type of tag %d", tagId);
+				exit(-1);
+			}
+		}
+	}
 }
 
 void FilterInterface_RCARS::initializeFilterWithIMUMeas(const mtPredictionMeas& meas, const double& t) {
@@ -156,10 +200,18 @@ void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::Const
       updateMeas.template get<mtUpdateMeas::_cor>()(2*j) = vision_msg->tags[i].corners[j].x;
       updateMeas.template get<mtUpdateMeas::_cor>()(2*j+1) = vision_msg->tags[i].corners[j].y;
     }
-    // Copy the estimated pose
+
+    // Copy the estimated pose from the detector
     const geometry_msgs::Pose& pose = vision_msg->tags[i].pose;
     updateMeas.template get<mtUpdateMeas::_aux>().tagPos_ = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
     updateMeas.template get<mtUpdateMeas::_aux>().tagAtt_ = rot::RotationQuaternionPD(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+
+    // if we have a static tag, we copy the position and orientation data
+    if (updateMeas.template get<mtUpdateMeas::_aux>().tagType_ == rcars::STATIC_TAG)
+    {
+    	updateMeas.template get<mtUpdateMeas::_aux>().IrIT_ = IrIT_[updateMeas.template get<mtUpdateMeas::_aux>().tagId_];
+    	updateMeas.template get<mtUpdateMeas::_aux>().qTI_ = qTI_[updateMeas.template get<mtUpdateMeas::_aux>().tagId_];
+    }
 
     // Add the update measurement
      addUpdateMeas(updateMeas, vision_msg->header.stamp.toSec());

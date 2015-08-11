@@ -130,6 +130,18 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
   std::map<int, rcars::TagType> tagType_;
 
   /*!
+   * Map from tagId to tag position for calibratedTags
+   */
+  std::map<int, Eigen::Vector3d, std::less<int>,
+           Eigen::aligned_allocator<std::pair<const int, Eigen::Vector3d> > > IrIT_;
+
+  /*!
+   * Map from tagId to tag orientation for calibratedTags
+   */
+  std::map<int, rot::RotationQuaternionPD, std::less<int>,
+           Eigen::aligned_allocator<std::pair<const int, rot::RotationQuaternionPD> > > qTI_;
+
+  /*!
    * Orientation of workspace with respect to reference tag
    */
   rot::RotationQuaternionPD qTW_;

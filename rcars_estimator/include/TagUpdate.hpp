@@ -52,6 +52,14 @@ class TagUpdateMeasAuxiliary: public LWF::AuxiliaryBase<TagUpdateMeasAuxiliary<S
    * Relative tag attitude estimate. qTV.
    */
   QPD tagAtt_;
+  /*!
+   * Relative tag position estimate. VrVT.
+   */
+  V3D IrIT_;
+  /*!
+   * Relative tag attitude estimate. qTV.
+   */
+  QPD qTI_;
 };
 /*!
  * Update measurement class, contains references to subentries:
