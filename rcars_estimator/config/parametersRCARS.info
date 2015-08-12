@@ -1,13 +1,17 @@
+Common
+{
+	verbose 0
+}
 Init
 {
     Covariance
     {
-        pos_0 0.0001
-        pos_1 0.0001
-        pos_2 0.0001
-        vel_0 1.0
-        vel_1 1.0
-        vel_2 1.0
+        pos_0 0.01
+        pos_1 0.01
+        pos_2 0.01
+        vel_0 0.01
+        vel_1 0.01
+        vel_2 0.01
         acb_0 4e-4
         acb_1 4e-4
         acb_2 4e-4
@@ -54,10 +58,11 @@ Init
 Update0
 {
     PixelStd 2.0
-    MahalanobisTh0 15.5823996
-    tagSize 0.232
+    MahalanobisTh0 15000000.5823996
+    tagSize 0.16
     initTagPosCov 10.0
     initTagAttCov 1.0
+    maxWaitTime 0.5
 }
 Prediction
 {
@@ -84,13 +89,13 @@ Prediction
         vea_0 1e-8
         vea_1 1e-8
         vea_2 1e-8
-        dyp_0 0.0001
-        dyp_1 0.0001
-        dyp_2 0.0001
-        dya_0 0.0001
-        dya_1 0.0001
-        dya_2 0.0001
-        hya_0 0.0001
-        hya_1 0.0001
+        dyp_0 1e-8
+        dyp_1 1e-8
+        dyp_2 1e-8
+        dya_0 1e-8
+        dya_1 1e-8
+        dya_2 1e-8
+        hya_0 1e-8
+        hya_1 1e-8
     }
 }

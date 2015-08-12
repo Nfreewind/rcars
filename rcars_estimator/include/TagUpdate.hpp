@@ -31,47 +31,72 @@ class TagInnovation: public LWF::State<LWF::VectorElement<8>>{
 template<typename STATE>
 class TagUpdateMeasAuxiliary: public LWF::AuxiliaryBase<TagUpdateMeasAuxiliary<STATE>>{
  public:
-  TagUpdateMeasAuxiliary(){
-      tagId_ = -1;
-      tagType_ = STATIC_TAG;
-  };
+  TagUpdateMeasAuxiliary(){}
+
   ~TagUpdateMeasAuxiliary(){};
+
+  void resize(size_t nTags)
+  {
+      tagIds_.resize(nTags, -1);
+      tagTypes_.resize(nTags, TAG_UNSPECIFIED);
+      VrVC_.resize(nTags, Eigen::Matrix<double,8,1>::Zero());
+      tagPos_.resize(nTags, V3D::Zero());
+      tagAtt_.resize(nTags);
+      IrIT_.resize(nTags, V3D::Zero());
+      qTI_.resize(nTags);
+  }
+
+  typedef std::vector<V3D, Eigen::aligned_allocator<V3D>> mtV3DVector;
+
   /*!
    * Tag ID of the measured Tag
    */
-  int tagId_;
+  std::vector<int> tagIds_;
   /*!
    * Tag Type of the measured Tag
    */
-  TagType tagType_;
+  std::vector<TagType> tagTypes_;
+  /*!
+   * Measured tag corners
+   */
+  std::vector<Eigen::Matrix<double,8,1>, Eigen::aligned_allocator<Eigen::Matrix<double,8,1>>> VrVC_;
   /*!
    * Relative tag position estimate. VrVT.
    */
-  V3D tagPos_;
+  mtV3DVector tagPos_;
   /*!
    * Relative tag attitude estimate. qTV.
    */
-  QPD tagAtt_;
+  std::vector<QPD> tagAtt_;
   /*!
-   * Relative tag position estimate. VrVT.
+   * Absolute tag position. VrVT.
    */
-  V3D IrIT_;
+  mtV3DVector IrIT_;
   /*!
-   * Relative tag attitude estimate. qTV.
+   * Absolute tag attitude. qTV.
    */
-  QPD qTI_;
+  std::vector<QPD> qTI_;
+  /*!
+   * Overriding virtual print
+   */
+  void print() const{
+    for(int i=0;i<tagIds_.size();i++){
+      std::cout << "Tag ID: " << tagIds_[i] << ", tag type: " << tagTypes_[i] << std::endl;
+      std::cout << "Tag att: " << tagAtt_[i] << std::endl;
+      std::cout << "Tag pos: " << tagPos_[i].transpose() << std::endl;
+    }
+  }
 };
 /*!
  * Update measurement class, contains references to subentries:
  * - cor: corner measurements
  */
 template<typename STATE>
-class TagUpdateMeas: public LWF::State<LWF::VectorElement<8>,TagUpdateMeasAuxiliary<STATE>>{
+class TagUpdateMeas: public LWF::State<TagUpdateMeasAuxiliary<STATE>>{
  public:
-  typedef LWF::State<LWF::VectorElement<8>,TagUpdateMeasAuxiliary<STATE>> Base;
+  typedef LWF::State<TagUpdateMeasAuxiliary<STATE>> Base;
   using Base::E_;
-  static constexpr unsigned int _cor = 0;
-  static constexpr unsigned int _aux = _cor+1;
+  static constexpr unsigned int _aux = 0;
   TagUpdateMeas(){
     static_assert(_aux+1==E_,"Error with indices");
   };
@@ -123,6 +148,10 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
    * Tags edge size
    */
   double tagSize_;
+  /*!
+   * Verbose flag
+   */
+  bool verbose_;
   TagUpdate(){
     tagSize_ = 0.1; // TODO: register
     computeTagCorners();
@@ -138,6 +167,7 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
     doubleRegister_.removeScalarByStr("kappa");
     doubleRegister_.removeScalarByStr("updateVecNormTermination");
     doubleRegister_.registerScalar("tagSize",tagSize_);
+    verbose_ = false;
   };
   ~TagUpdate(){};
   void refreshProperties(){
@@ -156,6 +186,7 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
    * Directly evaluates the innovation term (= reporjection error)
    */
   void eval(mtInnovation& y, const mtState& state, const mtMeas& meas, const mtNoise noise, double dt = 0.0) const{
+    const int& measInd = state.template get<mtState::_aux>().measIndIterator_;
     /* Reprojection error calculation.
      * Compute position of camera in inertial frame:
      * IrIV = IrIM  + qIM*(MrMV)
@@ -173,11 +204,12 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
     Eigen::Vector3d p;
     IrIV = state.template get<mtState::_pos>() + state.template get<mtState::_att>().rotate(state.template get<mtState::_vep>());
     y.template get<mtInnovation::_cor>().setZero();
-    const int tagId = meas.template get<mtMeas::_aux>().tagId_;
+    const int tagId = meas.template get<mtMeas::_aux>().tagIds_[measInd];
     if(tagId != -1){
-      if(meas.template get<mtMeas::_aux>().tagType_ == DYNAMIC_TAG){
+      if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == DYNAMIC_TAG){
         const int ind = state.template get<mtState::_aux>().getDynamicIndFromTagId(tagId);
         if(ind != -1){
+          if(verbose_) std::cout << "Performing update on dynamic tag, ID = " << tagId << ", ind = " << ind << std::endl;
           for(unsigned int j=0;j<4;j++){
             TrTC = TrTC_.col(j);
             IrIC = state.template get<mtState::_dyp>(ind) + state.template get<mtState::_dya>(ind).inverseRotate(TrTC);
@@ -185,8 +217,10 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
             p = CameraMatrix_*VrVC;
             double z = p(2);
             p = p/z;
-            y.template get<mtInnovation::_cor>()(j*2+0) = p(0)-meas.template get<mtMeas::_cor>()(j*2+0);
-            y.template get<mtInnovation::_cor>()(j*2+1) = p(1)-meas.template get<mtMeas::_cor>()(j*2+1);
+            y.template get<mtInnovation::_cor>()(j*2+0) = p(0)-meas.template get<mtMeas::_aux>().VrVC_[measInd](j*2+0);
+            y.template get<mtInnovation::_cor>()(j*2+1) = p(1)-meas.template get<mtMeas::_aux>().VrVC_[measInd](j*2+1);
+            if(verbose_) std::cout << "  VrVC" << j << ": " << VrVC.transpose()<< " \t\t with reprojection errors: ("
+                << y.template get<mtInnovation::_cor>()(j*2+0) << ", " << y.template get<mtInnovation::_cor>()(j*2+1) << ")" << std::endl;
           }
         }
       }
@@ -197,6 +231,7 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
    * Jacobian of update model with respect to the filter state
    */
   void jacInput(mtJacInput& F, const mtState& state, const mtMeas& meas, double dt = 0.0) const{
+    const int& measInd = state.template get<mtState::_aux>().measIndIterator_;
     F.setZero();
     Eigen::Vector3d IrIV;
     Eigen::Vector3d IrIC;
@@ -207,9 +242,9 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
     Eigen::Matrix<double,1,3> J1; // Partial jacobian with respect to first coordinate
     Eigen::Matrix<double,1,3> J2; // Partial jacobian with respect to second coordinate
     IrIV = state.template get<mtState::_pos>() + state.template get<mtState::_att>().rotate(state.template get<mtState::_vep>());
-    const int tagId = meas.template get<mtMeas::_aux>().tagId_;
+    const int tagId = meas.template get<mtMeas::_aux>().tagIds_[measInd];
     if(tagId != -1){
-      if(meas.template get<mtMeas::_aux>().tagType_ == DYNAMIC_TAG){
+      if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == DYNAMIC_TAG){
         const int ind = state.template get<mtState::_aux>().getDynamicIndFromTagId(tagId);
         if(ind != -1){
           for(unsigned int j=0;j<4;j++){
@@ -260,21 +295,29 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
    * It contains the handling of newly observed tags.
    */
   void preProcess(mtFilterState& filterState, const mtMeas& meas, bool& isFinished){
-    isFinished = false;
-    const int tagId = meas.template get<mtMeas::_aux>().tagId_;
+    if(meas.template get<mtMeas::_aux>().tagIds_.size() == 0){ // Catch case with empty measurements
+      return;
+    }
+    int& measInd = filterState.state_.template get<mtState::_aux>().measIndIterator_;
+    if(isFinished){ // Gets called the first time only
+      measInd = 0;
+      isFinished = false;
+    }
+    const int tagId = meas.template get<mtMeas::_aux>().tagIds_[measInd];
     if(tagId != -1){
-      if(meas.template get<mtMeas::_aux>().tagType_ == DYNAMIC_TAG){
+      if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == DYNAMIC_TAG){
         if(filterState.state_.template get<mtState::_aux>().getDynamicIndFromTagId(tagId) == -1){
           int newInd = filterState.state_.template get<mtState::_aux>().getFreeDynamicInd(); // Check if there is still space in the filter state for a further tag
           if(newInd >= 0){
-            filterState.makeNewDynamicTag(newInd,meas.template get<mtMeas::_aux>().tagId_,meas.template get<mtMeas::_aux>().tagPos_,meas.template get<mtMeas::_aux>().tagAtt_); // Add the new tag to the filter
+            filterState.makeNewDynamicTag(newInd,tagId,meas.template get<mtMeas::_aux>().tagPos_[measInd],meas.template get<mtMeas::_aux>().tagAtt_[measInd]); // Add the new tag to the filter
+            if(verbose_) std::cout << "Added new dynamic Tag with ID " << tagId << " at index " << newInd << std::endl;
+            if(verbose_) std::cout << "  IrIT: " << filterState.state_.template get<mtState::_dyp>().transpose() << std::endl;
+            if(verbose_) std::cout << "  qTI: " << filterState.state_.template get<mtState::_dya>() << std::endl;
           } else {
-            std::cout << "Was not able to create new tag, maximal number of dynamic tags reached" << std::endl;
+            if(verbose_) std::cout << "Was not able to create new tag, maximal number of dynamic tags reached" << std::endl;
           }
         }
       }
-    } else {
-      isFinished = true;
     }
   };
 
@@ -282,7 +325,11 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
    * This method is executed after an update.
    */
   void postProcess(mtFilterState& filterState, const mtMeas& meas, const mtOutlierDetection& outlierDetection, bool& isFinished){
-    isFinished = true;
+    int& measInd = filterState.state_.template get<mtState::_aux>().measIndIterator_;
+    measInd++;
+    if(measInd == meas.template get<mtMeas::_aux>().tagIds_.size()){
+      isFinished = true;
+    }
   };
 };
 

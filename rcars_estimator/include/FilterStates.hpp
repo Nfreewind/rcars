@@ -10,9 +10,10 @@ namespace rot = kindr::rotations::eigen_impl;
 namespace rcars {
 
 enum TagType{
-  DYNAMIC_TAG,
-  HYBRID_TAG,
-  STATIC_TAG
+  DYNAMIC_TAG = 0,
+  HYBRID_TAG = 1,
+  STATIC_TAG = 2,
+  TAG_UNSPECIFIED = -1
 };
 
 template<unsigned int nDynamicTags, unsigned int nHybridTags>
@@ -31,6 +32,7 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
     for(unsigned int i=0;i<nHybridTags;i++){
       hybridIds_[i] = -1;
     }
+    measIndIterator_ = 0;
   };
   ~StateAuxiliary(){};
   /*!
@@ -55,6 +57,10 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
    * Contains -1 if not yet assigned
    */
   int hybridIds_[nHybridTags];
+  /*!
+   * Iterator for measurement indices
+   */
+  int measIndIterator_;
   /*!
    * Searches the dynamic tag ID vector for a specific tag ID and returns the vector index
    * Returns -1 if not found.

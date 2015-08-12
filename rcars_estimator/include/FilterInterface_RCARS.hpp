@@ -104,7 +104,7 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
   /*!
    * Safe workspace to config
    */
-  void safeWorkspace(ros::NodeHandle& nh);
+  void saveWorkspace(ros::NodeHandle& nh);
 
   /*!
     * Boolean if vision data is available

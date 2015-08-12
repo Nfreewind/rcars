@@ -60,10 +60,12 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
    */
   typedef LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,nHybridTags>>,TagUpdate<FilterState<nDynamicTags,nHybridTags>>> Base;
   using Base::init_;
+  using Base::updateTimelineTuple_;
   using Base::reset;
   using Base::safe_;
   using Base::front_;
   using Base::doubleRegister_;
+  using Base::boolRegister_;
   using Base::mUpdates_;
   using Base::mPrediction_;
   typedef typename Base::mtFilterState mtFilterState;
@@ -105,15 +107,25 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
     mPrediction_.doubleRegister_.removeScalarByStr("alpha");
     mPrediction_.doubleRegister_.removeScalarByStr("beta");
     mPrediction_.doubleRegister_.removeScalarByStr("kappa");
-
     for(int i=0;i<3;i++){
       std::get<0>(mUpdates_).doubleRegister_.registerScalar("initTagPosCov",init_.dynamicTagInitCov_(i,i));
       std::get<0>(mUpdates_).doubleRegister_.registerScalar("initTagAttCov",init_.dynamicTagInitCov_(i+3,i+3));
     }
+    boolRegister_.registerScalar("Common.verbose",verbose_);
+    boolRegister_.registerScalar("Common.verbose",mPrediction_.verbose_);
+    boolRegister_.registerScalar("Common.verbose",std::get<0>(mUpdates_).verbose_);
+    std::get<0>(mUpdates_).doubleRegister_.registerScalar("maxWaitTime",std::get<0>(updateTimelineTuple_).maxWaitTime_);
+    verbose_ = false;
   }
+  /*!
+   * Verbose flag
+   */
+  bool verbose_;
+  /*!
+   * Gets called after the info file is read
+   */
   void refreshProperties(){
   };
-
   /*!
    * Destructor
    */

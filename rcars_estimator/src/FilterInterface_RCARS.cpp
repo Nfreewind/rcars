@@ -37,8 +37,8 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
   camInfoAvailable_ = false;
   referenceTagId_ = -1;
 
-  nh.getParam("calibrationViewCountThreshold", calibrationViewCountThreshold_, 10);
-  nh.getParam("overwriteWorkspace", overwriteWorkspace_, false);
+  nh.param<int>("calibrationViewCountThreshold", calibrationViewCountThreshold_, 10);
+  nh.param<bool>("overwriteWorkspace", overwriteWorkspace_, false);
 
   std::string filterParameterFile;
   if(nh.getParam("filterParameterFile", filterParameterFile))
@@ -85,7 +85,7 @@ void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 
 	if (nh.getParam("workspace/referenceTagId", referenceTagId_))
 	{
-		if (std::find(calibratedTags.begin(), calibratedTags.end(), referenceTagId_) == vector.end() )
+		if (std::find(calibratedTags.begin(), calibratedTags.end(), referenceTagId_) == calibratedTags.end() )
 		{
 			ROS_FATAL("WARNING: Reference tag with id %d is not listed as a calibrated tag.", referenceTagId_);
 		}
@@ -157,37 +157,46 @@ void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 }
 
 
-void FilterInterface_RCARS::safeWorkspace(ros::NodeHandle& nh)
+void FilterInterface_RCARS::saveWorkspace(ros::NodeHandle& nh)
 {
-	ROS_INFO("Saving workspace to %s.", filename);
+  std::string filename;
+  if (!nh.getParam("workspace/filename", filename))
+  {
+    ROS_FATAL("Parameter workspace filename not set. Cannot save workspace.");
+    return;
+  }
+
+	ROS_INFO("Saving workspace to %s.", filename.c_str());
 
 	// if we do not only update, first delete all tags
 	if (overwriteWorkspace_)
 	{
-		ROS_INFO("Existing workspace will be overwritten.")
+		ROS_INFO("Existing workspace will be overwritten.");
 		nh.deleteParam("tags");
 	}
 
 	std::vector<int> calibratedTags;
+	std::vector<int> calibratedTagIndeces;
 
-	for (size_t i=0; i< safe_.nDynamicTags_; i++)
+	for (size_t i=0; i< mtState::nDynamicTags_; i++)
 	{
-		int tagId = safe_.template get<mtState::_aux>().dynamicIds_[i];
+		int tagId = safe_.state_.template get<mtState::_aux>().dynamicIds_[i];
 		if (tagId != -1)
 		{
 			if (tagViewCount_[tagId] > calibrationViewCountThreshold_)
 			{
 				calibratedTags.push_back(tagId);
+				calibratedTagIndeces.push_back(i);
 
-				ROS_INFO("Adding Tag with id %d and %d views and %d overlapping views.", tagId, tagViewCount_, tagViewOverlapCount_);
+				ROS_INFO("Adding Tag with id %d and %u views and %u overlapping views.", tagId, tagViewCount_[tagId], tagViewOverlapCount_[tagId]);
 			} else
 			{
-				ROS_INFO("Skipping Tag with id %d and %d views and %d overlapping views.", tagId, tagViewCount_, tagViewOverlapCount_);
+				ROS_INFO("Skipping Tag with id %d and %u views and %u overlapping views.", tagId, tagViewCount_[tagId], tagViewOverlapCount_[tagId]);
 			}
 		}
 	}
 
-	ROS_INFO("%d dynamic calibrated tags.", calibratedTags.size());
+	ROS_INFO("%lu dynamic calibrated tags.", calibratedTags.size());
 
 	nh.deleteParam("workspace/calibratedTags");
 	nh.setParam("workspace/calibratedTags", calibratedTags);
@@ -195,19 +204,20 @@ void FilterInterface_RCARS::safeWorkspace(ros::NodeHandle& nh)
 	for (size_t i=0; i<calibratedTags.size(); i++)
 	{
 		int tagId = calibratedTags[i];
+		int tagIndex = calibratedTagIndeces[i];
 
 		std::string parameterBaseName = "tags/tag" + std::to_string(tagId);
 
 		nh.deleteParam(parameterBaseName);
 
 		nh.setParam(parameterBaseName+"/type", rcars::STATIC_TAG);
-		nh.setParam(parameterBaseName+"/position/x", safe_.template get<mtState::_dyp>[tagId](0));
-		nh.setParam(parameterBaseName+"/position/y", safe_.template get<mtState::_dyp>[tagId](1));
-		nh.setParam(parameterBaseName+"/position/z", safe_.template get<mtState::_dyp>[tagId](2));
-		nh.setParam(parameterBaseName+"/orientation/w", safe_.template get<mtState::_dya>[tagId].w());
-		nh.setParam(parameterBaseName+"/orientation/x", safe_.template get<mtState::_dya>[tagId].x());
-		nh.setParam(parameterBaseName+"/orientation/y", safe_.template get<mtState::_dya>[tagId].y());
-		nh.setParam(parameterBaseName+"/orientation/z", safe_.template get<mtState::_dya>[tagId].z());
+		nh.setParam(parameterBaseName+"/position/x", safe_.state_.template get<mtState::_dyp>(tagIndex)(0));
+		nh.setParam(parameterBaseName+"/position/y", safe_.state_.template get<mtState::_dyp>(tagIndex)(1));
+		nh.setParam(parameterBaseName+"/position/z", safe_.state_.template get<mtState::_dyp>(tagIndex)(2));
+		nh.setParam(parameterBaseName+"/orientation/w", safe_.state_.template get<mtState::_dya>(tagIndex).w());
+		nh.setParam(parameterBaseName+"/orientation/x", safe_.state_.template get<mtState::_dya>(tagIndex).x());
+		nh.setParam(parameterBaseName+"/orientation/y", safe_.state_.template get<mtState::_dya>(tagIndex).y());
+		nh.setParam(parameterBaseName+"/orientation/z", safe_.state_.template get<mtState::_dya>(tagIndex).z());
 	}
 }
 
@@ -244,15 +254,19 @@ void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::Const
   if (!isInitialized_) { return; }
 
   // Create and fill the update measurement
-  mtUpdateMeas updateMeas(vision_msg->tags.size());
+  mtUpdateMeas updateMeas;
+  updateMeas.template get<mtUpdateMeas::_aux>().resize(vision_msg->tags.size());
 
   // Read out the tags from the current TagArray measurement
+  if(verbose_) std::cout << "== New Tag Meas ==" << std::endl;
   for (size_t i=0; i<vision_msg->tags.size(); i++){
+
+    int tagId = vision_msg->tags[i].id;
     // Copy the tag index
-    updateMeas.template get<mtUpdateMeas::_aux>().tagIds_[i] = vision_msg->tags[i].id;
+    updateMeas.template get<mtUpdateMeas::_aux>().tagIds_[i] = tagId;
 
     tagViewCount_[vision_msg->tags[i].id]++;
-    if (vision_msg->tags.size() > 1) { tagViewOverlapCount_[vision_msg->tags[i].id]++; }
+    if (vision_msg->tags.size() > 1) { tagViewOverlapCount_[tagId]++; }
 
     // by default tags are dynamic
     updateMeas.template get<mtUpdateMeas::_aux>().tagTypes_[i] = rcars::DYNAMIC_TAG;
@@ -276,14 +290,15 @@ void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::Const
     updateMeas.template get<mtUpdateMeas::_aux>().tagAtt_[i] = rot::RotationQuaternionPD(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
 
     // if we have a static tag, we copy the position and orientation data
-    if (updateMeas.template get<mtUpdateMeas::_aux>().tagType_[i] == rcars::STATIC_TAG)
+    if (updateMeas.template get<mtUpdateMeas::_aux>().tagTypes_[i] == rcars::STATIC_TAG)
     {
-    	updateMeas.template get<mtUpdateMeas::_aux>().IrIT_[i] = IrIT_[updateMeas.template get<mtUpdateMeas::_aux>().tagId_];
-    	updateMeas.template get<mtUpdateMeas::_aux>().qTI_[i] = qTI_[updateMeas.template get<mtUpdateMeas::_aux>().tagId_];
+    	updateMeas.template get<mtUpdateMeas::_aux>().IrIT_[i] = IrIT_[tagId];
+    	updateMeas.template get<mtUpdateMeas::_aux>().qTI_[i] = qTI_[tagId];
     }
   }
 
   // Add the update measurement and update
+  if(verbose_) updateMeas.print();
   addUpdateMeas(updateMeas, vision_msg->header.stamp.toSec());
   updateAndPublish();
 }
@@ -316,6 +331,11 @@ void FilterInterface_RCARS::updateAndPublish(void){
       // get the estimated position and attitude
       Eigen::Vector3d pos = get_IrIM_safe();
       rot::RotationQuaternionPD quat = get_qMI_safe();
+
+      // Verbose
+      if(verbose_) std::cout << "Calibration:" << std::endl;
+      if(verbose_) std::cout << "  MrMV: " << safe_.state_.template get<mtState::_vep>().transpose() << std::endl;
+      if(verbose_) std::cout << "  qVM: " << safe_.state_.template get<mtState::_vea>() << std::endl;
 
       // Publish the corresponding tf
       static tf::TransformBroadcaster tb_ekf_safe;

@@ -44,35 +44,10 @@ int main(int argc, char** argv){
   rcars::TagUpdate<mtFilterState> mTagUpdate;
   typedef rcars::TagUpdate<mtFilterState>::mtMeas mtTagUpdateMeas;
   mtTagUpdateMeas tagUpdateMeas;
-  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagId_ = 0;
-  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagType_ = rcars::DYNAMIC_TAG;
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().resize(1);
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagIds_[0] = 0;
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagTypes_[0] = rcars::DYNAMIC_TAG;
   mTagUpdate.testJacs(state,tagUpdateMeas,1e-8,1e-5,0.1);
-
-
-//  LWFM::DeevioFilter<true> deevioFilter;
-//  LWFM::LegPosAndPoseFilter<4,StarlETHKinematics> legPosAndPoseFilter;
-//  LWFM::LegVelAndPoseFilter<4,StarlETHKinematics> legVelAndPoseFilter;
-//
-//  LWFM::TransformStandardPoseCF transformStandardPoseCF;
-//  transformStandardPoseCF.testJacInput();
-//
-//  LWFM::StandardPoseOutputCF<LWFM::PoseUpdate<mtFilterState>> standardPoseOutputCF(mPoseUpdate);
-//  standardPoseOutputCF.testJacInput();
-//
-//  LWFM::StandardKinOutputCF<LWFM::Kin2Update<mtFilterState,StarlETHKinematics>> standardKinOutputCF(mKin2Update);
-//  standardKinOutputCF.testJacInput();
-//
-//  LWFM::RelPoseOutputCF<LWFM::DeevioUpdate<mtFilterState>> relPoseOutputCF(mDeevioUpdate);
-//  relPoseOutputCF.testJacInput();
-//
-//  LWFM::KeyframeOutputCF<mtState> keyframeOutputCF;
-//  keyframeOutputCF.testJacInput();
-//
-//  LWFM::ExtrinsicsOutputCF<mtState> extrinsicsOutputCF;
-//  extrinsicsOutputCF.testJacInput();
-//
-//  LWFM::DeevioOutputCF<LWFM::DeevioUpdate<mtFilterState>> deevioOutputCF(mDeevioUpdate);
-//  deevioOutputCF.testJacInput();
 
   return 0;
 }

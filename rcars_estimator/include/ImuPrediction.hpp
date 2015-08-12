@@ -27,6 +27,10 @@ class ImuPrediction: public LWF::Prediction<FILTERSTATE>{
    * Gravity vector expressed in the inertial frame
    */
   const V3D g_;
+  /*!
+   * Verbose flag
+   */
+  bool verbose_;
   ImuPrediction():g_(0,0,-9.81){
     int ind;
     for(int i=0;i<mtState::nDynamicTags_;i++){
@@ -54,6 +58,7 @@ class ImuPrediction: public LWF::Prediction<FILTERSTATE>{
       doubleRegister_.registerScalar("PredictionNoise.hya_1",prenoiP_(ind+1,ind+1));
     }
     disablePreAndPostProcessingWarning_ = true;
+    verbose_ = false;
   };
   ~ImuPrediction(){};
   /*!
