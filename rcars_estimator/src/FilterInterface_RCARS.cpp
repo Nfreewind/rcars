@@ -29,7 +29,9 @@
 #include "FilterInterface_RCARS.hpp"
 
 
-FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
+FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) :
+	nh_(nh)
+{
 
   // Initialize remaining filter variables
   visionDataAvailable_ = false;
@@ -37,11 +39,11 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
   camInfoAvailable_ = false;
   referenceTagId_ = -1;
 
-  nh.param<int>("calibrationViewCountThreshold", calibrationViewCountThreshold_, 10);
-  nh.param<bool>("overwriteWorkspace", overwriteWorkspace_, false);
+  nh_.param<int>("calibrationViewCountThreshold", calibrationViewCountThreshold_, 10);
+  nh_.param<bool>("overwriteWorkspace", overwriteWorkspace_, false);
 
   std::string filterParameterFile;
-  if(nh.getParam("filterParameterFile", filterParameterFile))
+  if(nh_.getParam("filterParameterFile", filterParameterFile))
   {
 	  readFromInfo(filterParameterFile);
   } else
@@ -49,7 +51,7 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
 	  ROS_FATAL("parameter filterParameterFile is unset. Cannot load filter.");
 	  exit(-1);
   }
-  loadWorkspace(nh);
+  loadWorkspace();
 
   // Outlier detection currently disabled
   // enableOutlierDetection();
@@ -59,22 +61,25 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
   reset();
 
   // Setup subscribers and publishers
-  subImu_ = nh.subscribe("/imu0", 1000, &FilterInterface_RCARS::imuCallback,this);
-  subTags_ = nh.subscribe("/rcars_detected_tags", 10, &FilterInterface_RCARS::visionCallback,this);
-  subCameraInfo_ = nh.subscribe("/cam0/camera_info", 1, &FilterInterface_RCARS::cameraInfoCallback,this);
-  pubPose_ = nh.advertise<geometry_msgs::PoseStamped>("filterPose", 1000);
-  pubTagPoses_ = nh.advertise<rcars_detector::TagPoses>("tagPoses", 1000);
-  pubTagPosesBody_ = nh.advertise<rcars_detector::TagPoses>("tagPosesBody",1000);
-  pubTagVis_ = nh.advertise<geometry_msgs::PoseArray>("tagPosesVis",1000);
-  pubPoseSafe_ = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterPoseSafe", 1000);
-  pubTwistSafe_ = nh.advertise<geometry_msgs::TwistWithCovarianceStamped>("filterTwistSafe", 1000);
+  subImu_ = nh_.subscribe("/imu0", 1000, &FilterInterface_RCARS::imuCallback,this);
+  subTags_ = nh_.subscribe("/rcars_detected_tags", 10, &FilterInterface_RCARS::visionCallback,this);
+  subCameraInfo_ = nh_.subscribe("/cam0/camera_info", 1, &FilterInterface_RCARS::cameraInfoCallback,this);
+  pubPose_ = nh_.advertise<geometry_msgs::PoseStamped>("filterPose", 1000);
+  pubTagPoses_ = nh_.advertise<rcars_detector::TagPoses>("tagPoses", 1000);
+  pubTagPosesBody_ = nh_.advertise<rcars_detector::TagPoses>("tagPosesBody",1000);
+  pubTagVis_ = nh_.advertise<geometry_msgs::PoseArray>("tagPosesVis",1000);
+  pubPoseSafe_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterPoseSafe", 1000);
+  pubTwistSafe_ = nh_.advertise<geometry_msgs::TwistWithCovarianceStamped>("filterTwistSafe", 1000);
+
+  resetService_ = nh.advertiseService("reset", &FilterInterface_RCARS::resetServiceCallback, this);
+  saveWorkspaceService_ = nh.advertiseService("saveWorkspace", &FilterInterface_RCARS::saveWorkspaceCallback, this);
 }
 
 
-void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
+void FilterInterface_RCARS::loadWorkspace()
 {
 	std::vector<int> calibratedTags;
-	if (!nh.getParam("workspace/calibratedTags", calibratedTags))
+	if (!nh_.getParam("workspace/calibratedTags", calibratedTags))
 	{
 		ROS_FATAL("No calibrated tags found. Creating empty workspace.");
 		return;
@@ -83,7 +88,7 @@ void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 	Eigen::Vector3d WrWT;
 	Eigen::Quaterniond qTW;
 
-	if (nh.getParam("workspace/referenceTagId", referenceTagId_))
+	if (nh_.getParam("workspace/referenceTagId", referenceTagId_))
 	{
 		if (std::find(calibratedTags.begin(), calibratedTags.end(), referenceTagId_) == calibratedTags.end() )
 		{
@@ -91,13 +96,13 @@ void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 		}
 
 		if(
-			nh.getParam("workspace/T_workspace_refTag/position/x", WrWT(0)) &&
-			nh.getParam("workspace/T_workspace_refTag/position/y", WrWT(1)) &&
-			nh.getParam("workspace/T_workspace_refTag/position/z", WrWT(2)) &&
-			nh.getParam("workspace/T_workspace_refTag/orientation/w", qTW.w()) &&
-			nh.getParam("workspace/T_workspace_refTag/orientation/x", qTW.x()) &&
-			nh.getParam("workspace/T_workspace_refTag/orientation/x", qTW.y()) &&
-			nh.getParam("workspace/T_workspace_refTag/orientation/y", qTW.z())
+			nh_.getParam("workspace/T_workspace_refTag/position/x", WrWT(0)) &&
+			nh_.getParam("workspace/T_workspace_refTag/position/y", WrWT(1)) &&
+			nh_.getParam("workspace/T_workspace_refTag/position/z", WrWT(2)) &&
+			nh_.getParam("workspace/T_workspace_refTag/orientation/w", qTW.w()) &&
+			nh_.getParam("workspace/T_workspace_refTag/orientation/x", qTW.x()) &&
+			nh_.getParam("workspace/T_workspace_refTag/orientation/x", qTW.y()) &&
+			nh_.getParam("workspace/T_workspace_refTag/orientation/y", qTW.z())
 		)
 		{
 			ROS_INFO("Found reference Tag and workspace to reference tag transformation.");
@@ -117,23 +122,23 @@ void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 	for (size_t i=0; i<calibratedTags.size(); i++)
 	{
 		int tagId = calibratedTags[i];
-		std::string parameterBaseName = "tags/tag" + std::to_string(tagId);
+		std::string parameterBaseName = "workspace/tags/tag" + std::to_string(tagId);
 		std::string tagType;
 		if (
-			nh.getParam(parameterBaseName+"/type", tagType) &&
-			nh.getParam(parameterBaseName+"/position/x", IrIT_[tagId](0)) &&
-			nh.getParam(parameterBaseName+"/position/y", IrIT_[tagId](1)) &&
-			nh.getParam(parameterBaseName+"/position/z", IrIT_[tagId](2))
+			nh_.getParam(parameterBaseName+"/type", tagType) &&
+			nh_.getParam(parameterBaseName+"/position/x", IrIT_[tagId](0)) &&
+			nh_.getParam(parameterBaseName+"/position/y", IrIT_[tagId](1)) &&
+			nh_.getParam(parameterBaseName+"/position/z", IrIT_[tagId](2))
 		)
 		{
 			if (tagType == "static")
 			{
 				tagType_[tagId] = rcars::STATIC_TAG;
 				Eigen::Quaterniond rot;
-				if (nh.getParam(parameterBaseName+"/orientation/w", rot.w()) &&
-					nh.getParam(parameterBaseName+"/orientation/x", rot.x()) &&
-					nh.getParam(parameterBaseName+"/orientation/y", rot.y()) &&
-					nh.getParam(parameterBaseName+"/orientation/z", rot.z())
+				if (nh_.getParam(parameterBaseName+"/orientation/w", rot.w()) &&
+					nh_.getParam(parameterBaseName+"/orientation/x", rot.x()) &&
+					nh_.getParam(parameterBaseName+"/orientation/y", rot.y()) &&
+					nh_.getParam(parameterBaseName+"/orientation/z", rot.z())
 				)
 				{
 					qTI_[tagId] = rot::RotationQuaternionPD(rot);
@@ -157,13 +162,13 @@ void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 }
 
 
-void FilterInterface_RCARS::saveWorkspace(ros::NodeHandle& nh)
+void FilterInterface_RCARS::saveWorkspace()
 {
   std::string filename;
-  if (!nh.getParam("workspace/filename", filename))
+  if (!nh_.getParam("workspace/filename", filename))
   {
-    ROS_FATAL("Parameter workspace filename not set. Cannot save workspace.");
-    return;
+	filename = ros::package::getPath("rcars_estimator") + "/config/workspaces/default.yaml";
+    ROS_WARN("Parameter workspace filename not set. Will save workspace to default location %s.", filename.c_str());
   }
 
 	ROS_INFO("Saving workspace to %s.", filename.c_str());
@@ -172,7 +177,7 @@ void FilterInterface_RCARS::saveWorkspace(ros::NodeHandle& nh)
 	if (overwriteWorkspace_)
 	{
 		ROS_INFO("Existing workspace will be overwritten.");
-		nh.deleteParam("tags");
+		nh_.deleteParam("tags");
 	}
 
 	std::vector<int> calibratedTags;
@@ -198,28 +203,51 @@ void FilterInterface_RCARS::saveWorkspace(ros::NodeHandle& nh)
 
 	ROS_INFO("%lu dynamic calibrated tags.", calibratedTags.size());
 
-	nh.deleteParam("workspace/calibratedTags");
-	nh.setParam("workspace/calibratedTags", calibratedTags);
+	nh_.deleteParam("workspace/calibratedTags");
+	nh_.setParam("workspace/calibratedTags", calibratedTags);
 
 	for (size_t i=0; i<calibratedTags.size(); i++)
 	{
 		int tagId = calibratedTags[i];
 		int tagIndex = calibratedTagIndeces[i];
 
-		std::string parameterBaseName = "tags/tag" + std::to_string(tagId);
+		std::string parameterBaseName = "workspace/tags/tag" + std::to_string(tagId);
 
-		nh.deleteParam(parameterBaseName);
+		nh_.deleteParam(parameterBaseName);
 
-		nh.setParam(parameterBaseName+"/type", rcars::STATIC_TAG);
-		nh.setParam(parameterBaseName+"/position/x", safe_.state_.template get<mtState::_dyp>(tagIndex)(0));
-		nh.setParam(parameterBaseName+"/position/y", safe_.state_.template get<mtState::_dyp>(tagIndex)(1));
-		nh.setParam(parameterBaseName+"/position/z", safe_.state_.template get<mtState::_dyp>(tagIndex)(2));
-		nh.setParam(parameterBaseName+"/orientation/w", safe_.state_.template get<mtState::_dya>(tagIndex).w());
-		nh.setParam(parameterBaseName+"/orientation/x", safe_.state_.template get<mtState::_dya>(tagIndex).x());
-		nh.setParam(parameterBaseName+"/orientation/y", safe_.state_.template get<mtState::_dya>(tagIndex).y());
-		nh.setParam(parameterBaseName+"/orientation/z", safe_.state_.template get<mtState::_dya>(tagIndex).z());
+		nh_.setParam(parameterBaseName+"/type", rcars::STATIC_TAG);
+		nh_.setParam(parameterBaseName+"/position/x", safe_.state_.template get<mtState::_dyp>(tagIndex)(0));
+		nh_.setParam(parameterBaseName+"/position/y", safe_.state_.template get<mtState::_dyp>(tagIndex)(1));
+		nh_.setParam(parameterBaseName+"/position/z", safe_.state_.template get<mtState::_dyp>(tagIndex)(2));
+		nh_.setParam(parameterBaseName+"/orientation/w", safe_.state_.template get<mtState::_dya>(tagIndex).w());
+		nh_.setParam(parameterBaseName+"/orientation/x", safe_.state_.template get<mtState::_dya>(tagIndex).x());
+		nh_.setParam(parameterBaseName+"/orientation/y", safe_.state_.template get<mtState::_dya>(tagIndex).y());
+		nh_.setParam(parameterBaseName+"/orientation/z", safe_.state_.template get<mtState::_dya>(tagIndex).z());
+	}
+
+	std::string systemCall = "rosparam dump " + filename + " " + ros::this_node::getNamespace() + "/estimator/workspace";
+	if (system(systemCall.c_str()) == -1)
+	{
+		ROS_FATAL("Could not save workspace to %s", filename.c_str());
+	} else{
+		ROS_INFO("Saved workspace to %s", filename.c_str());
 	}
 }
+
+bool FilterInterface_RCARS::resetServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response)
+{
+	reset();
+	isInitialized_ = false;
+	visionDataAvailable_ = false;
+	return true;
+}
+
+bool FilterInterface_RCARS::saveWorkspaceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response)
+{
+	saveWorkspace();
+	return true;
+}
+
 
 void FilterInterface_RCARS::initializeFilterWithIMUMeas(const mtPredictionMeas& meas, const double& t) {
   // Reset the filter using the provided accelerometer measurement

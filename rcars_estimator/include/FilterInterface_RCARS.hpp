@@ -30,11 +30,13 @@
 #define FilterInterface_RCARS_HPP_
 
 #include <ros/ros.h>
+#include <ros/package.h>
 #include <tf/tf.h>
 #include <tf/transform_broadcaster.h>
 #include <tf_conversions/tf_eigen.h>
 
 #include <FilterRCARS.hpp>
+#include <std_srvs/Empty.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
@@ -71,6 +73,16 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
   void initializeFilterWithTag(const mtUpdateMeas& meas, const double& t);
 
   /*!
+   * Callback function for service that saves the current workspace
+   */
+  bool saveWorkspaceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+
+  /*!
+   * Callback for service that resets the filter
+   */
+  bool resetServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+
+  /*!
    * Callback for IMU ros messages.
    */
   void imuCallback(const sensor_msgs::Imu::ConstPtr& imu_msg);
@@ -95,16 +107,17 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
    */
   void publishTagPoses(void);
 
+  /*!
+   * Safe workspace to config
+   */
+  void saveWorkspace();
+
  private:
   /*!
    * Loads workspace from config
    */
-  void loadWorkspace(ros::NodeHandle& nh);
+  void loadWorkspace();
 
-  /*!
-   * Safe workspace to config
-   */
-  void saveWorkspace(ros::NodeHandle& nh);
 
   /*!
     * Boolean if vision data is available
@@ -176,10 +189,11 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
    */
   bool overwriteWorkspace_;
 
-
   /*!
    * Ros publishers and subscribers
    */
+  ros::NodeHandle& nh_;
+
   ros::Subscriber subImu_;
   ros::Subscriber subTags_;
   ros::Subscriber subCameraInfo_;
@@ -189,6 +203,9 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
   ros::Publisher pubTwistSafe_;
   ros::Publisher pubTagPosesBody_;
   ros::Publisher pubTagVis_;
+
+  ros::ServiceServer resetService_;
+  ros::ServiceServer saveWorkspaceService_;
 };
 
 #endif /* FilterInterface_RCARS_HPP_ */

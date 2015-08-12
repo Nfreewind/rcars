@@ -10,7 +10,9 @@ set(CMAKE_BUILD_TYPE RELEASE)
 find_package(catkin REQUIRED
 	lightweight_filtering
     roscpp
+    roslib
     sensor_msgs
+    std_srvs
     rcars_detector
 	tf
 	cmake_modules

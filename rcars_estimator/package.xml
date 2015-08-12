@@ -34,14 +34,18 @@
   <!-- Use build_depend for packages you need at compile time: -->
   <build_depend>rcars_detector</build_depend>
   <build_depend>sensor_msgs</build_depend>
+  <build_depend>std_srvs</build_depend>
   <build_depend>cmake_modules</build_depend>
   <build_depend>roscpp</build_depend>
+  <build_depend>roslib</build_depend>
   <!-- Use buildtool_depend for build tool packages: -->
   <!--   <buildtool_depend>catkin</buildtool_depend> -->
   <!-- Use run_depend for packages you need at runtime: -->
   <run_depend>rcars_detector</run_depend>
   <run_depend>sensor_msgs</run_depend>
+  <run_depend>std_srvs</run_depend>
   <run_depend>roscpp</run_depend>
+  <run_depend>roslib</run_depend>
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
