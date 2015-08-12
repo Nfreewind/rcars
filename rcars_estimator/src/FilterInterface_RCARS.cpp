@@ -37,6 +37,9 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
   camInfoAvailable_ = false;
   referenceTagId_ = -1;
 
+  nh.getParam("calibrationViewCountThreshold", calibrationViewCountThreshold_, 10);
+  nh.getParam("overwriteWorkspace", overwriteWorkspace_, false);
+
   std::string filterParameterFile;
   if(nh.getParam("filterParameterFile", filterParameterFile))
   {
@@ -157,6 +160,14 @@ void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 void FilterInterface_RCARS::safeWorkspace(ros::NodeHandle& nh)
 {
 	ROS_INFO("Saving workspace to %s.", filename);
+
+	// if we do not only update, first delete all tags
+	if (overwriteWorkspace_)
+	{
+		ROS_INFO("Existing workspace will be overwritten.")
+		nh.deleteParam("tags");
+	}
+
 	std::vector<int> calibratedTags;
 
 	for (size_t i=0; i< safe_.nDynamicTags_; i++)
@@ -164,9 +175,14 @@ void FilterInterface_RCARS::safeWorkspace(ros::NodeHandle& nh)
 		int tagId = safe_.template get<mtState::_aux>().dynamicIds_[i];
 		if (tagId != -1)
 		{
-			if (tagViewCount_[tagId] > calibrationThreshold_)
+			if (tagViewCount_[tagId] > calibrationViewCountThreshold_)
 			{
-				calibratedTags.push_back(i);
+				calibratedTags.push_back(tagId);
+
+				ROS_INFO("Adding Tag with id %d and %d views and %d overlapping views.", tagId, tagViewCount_, tagViewOverlapCount_);
+			} else
+			{
+				ROS_INFO("Skipping Tag with id %d and %d views and %d overlapping views.", tagId, tagViewCount_, tagViewOverlapCount_);
 			}
 		}
 	}
@@ -175,6 +191,24 @@ void FilterInterface_RCARS::safeWorkspace(ros::NodeHandle& nh)
 
 	nh.deleteParam("workspace/calibratedTags");
 	nh.setParam("workspace/calibratedTags", calibratedTags);
+
+	for (size_t i=0; i<calibratedTags.size(); i++)
+	{
+		int tagId = calibratedTags[i];
+
+		std::string parameterBaseName = "tags/tag" + std::to_string(tagId);
+
+		nh.deleteParam(parameterBaseName);
+
+		nh.setParam(parameterBaseName+"/type", rcars::STATIC_TAG);
+		nh.setParam(parameterBaseName+"/position/x", safe_.template get<mtState::_dyp>[tagId](0));
+		nh.setParam(parameterBaseName+"/position/y", safe_.template get<mtState::_dyp>[tagId](1));
+		nh.setParam(parameterBaseName+"/position/z", safe_.template get<mtState::_dyp>[tagId](2));
+		nh.setParam(parameterBaseName+"/orientation/w", safe_.template get<mtState::_dya>[tagId].w());
+		nh.setParam(parameterBaseName+"/orientation/x", safe_.template get<mtState::_dya>[tagId].x());
+		nh.setParam(parameterBaseName+"/orientation/y", safe_.template get<mtState::_dya>[tagId].y());
+		nh.setParam(parameterBaseName+"/orientation/z", safe_.template get<mtState::_dya>[tagId].z());
+	}
 }
 
 void FilterInterface_RCARS::initializeFilterWithIMUMeas(const mtPredictionMeas& meas, const double& t) {

@@ -115,7 +115,7 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
  * - vep: Vison extrinsics position
  * - vea: Vison extrinsics attitude
  * - dyp: dynamic tag positions
- * - dyp: dynamic tag attitudes
+ * - dya: dynamic tag attitudes
  * - ĥya: hybrid tag normal
  * Also includes tracking of further quantities.
  * nDynamicTags is the maximum number of dynamic tags that can be kept in the filter state.

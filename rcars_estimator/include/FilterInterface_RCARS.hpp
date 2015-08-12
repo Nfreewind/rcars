@@ -104,7 +104,7 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
   /*!
    * Safe workspace to config
    */
-  void FilterInterface_RCARS::safeWorkspace(ros::NodeHandle& nh)
+  void safeWorkspace(ros::NodeHandle& nh);
 
   /*!
     * Boolean if vision data is available
@@ -128,6 +128,11 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
    * ID of reference tag for workspace alignment, -1 if no reference tag is configured.
    */
   int referenceTagId_;
+
+  /*!
+   * Counter how many times a tag has to be seen until it gets added to the calibrated workspace.
+   */
+  int calibrationViewCountThreshold_;
 
   /*!
    * Map from tagId to tag type
@@ -165,6 +170,11 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
    * Location of reference tag in workspace
    */
   Eigen::Vector3d WrWT_;
+
+  /*!
+   * Flag if workspace gets overwritten (or just updated)
+   */
+  bool overwriteWorkspace_;
 
 
   /*!
