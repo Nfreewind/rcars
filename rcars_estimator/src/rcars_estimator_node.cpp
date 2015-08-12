@@ -18,5 +18,13 @@ int main(int argc, char *argv[]){
 
   // Spin
   ros::spin();
+
+  // Save workspace
+  bool saveWorkspace = false;
+  n.param<bool>("saveWorkspace", saveWorkspace, saveWorkspace);
+
+  if (saveWorkspace)
+	  filterInterface.saveWorkspace();
+
   return 0;
 }
