@@ -102,6 +102,11 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
   void loadWorkspace(ros::NodeHandle& nh);
 
   /*!
+   * Safe workspace to config
+   */
+  void FilterInterface_RCARS::safeWorkspace(ros::NodeHandle& nh)
+
+  /*!
     * Boolean if vision data is available
     */
   bool visionDataAvailable_;
@@ -128,6 +133,16 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
    * Map from tagId to tag type
    */
   std::map<int, rcars::TagType> tagType_;
+
+  /*!
+   * Counts how often a tag has been seen
+   */
+  std::map<int, unsigned int> tagViewCount_;
+
+  /*!
+   * Counts how often a tag has been seen while a second one was seen at the same time
+   */
+  std::map<int, unsigned int> tagViewOverlapCount_;
 
   /*!
    * Map from tagId to tag position for calibratedTags

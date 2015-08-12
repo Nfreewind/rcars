@@ -70,11 +70,22 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) {
 
 void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 {
+	std::vector<int> calibratedTags;
+	if (!nh.getParam("workspace/calibratedTags", calibratedTags))
+	{
+		ROS_FATAL("No calibrated tags found. Creating empty workspace.");
+		return;
+	}
+
 	Eigen::Vector3d WrWT;
 	Eigen::Quaterniond qTW;
 
 	if (nh.getParam("workspace/referenceTagId", referenceTagId_))
 	{
+		if (std::find(calibratedTags.begin(), calibratedTags.end(), referenceTagId_) == vector.end() )
+		{
+			ROS_FATAL("WARNING: Reference tag with id %d is not listed as a calibrated tag.", referenceTagId_);
+		}
 
 		if(
 			nh.getParam("workspace/T_workspace_refTag/position/x", WrWT(0)) &&
@@ -100,13 +111,6 @@ void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 		ROS_INFO("No workspace reference tag ID found. Cannot give workspace information.");
 	}
 
-	std::vector<int> calibratedTags;
-	if (!nh.getParam("workspace/calibratedTags", calibratedTags))
-	{
-		ROS_FATAL("No calibrated tags found. Creating empty workspace.");
-		return;
-	}
-
 	for (size_t i=0; i<calibratedTags.size(); i++)
 	{
 		int tagId = calibratedTags[i];
@@ -115,8 +119,8 @@ void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 		if (
 			nh.getParam(parameterBaseName+"/type", tagType) &&
 			nh.getParam(parameterBaseName+"/position/x", IrIT_[tagId](0)) &&
-			nh.getParam(parameterBaseName+"/position/x", IrIT_[tagId](1)) &&
-			nh.getParam(parameterBaseName+"/position/x", IrIT_[tagId](2))
+			nh.getParam(parameterBaseName+"/position/y", IrIT_[tagId](1)) &&
+			nh.getParam(parameterBaseName+"/position/z", IrIT_[tagId](2))
 		)
 		{
 			if (tagType == "static")
@@ -141,8 +145,36 @@ void FilterInterface_RCARS::loadWorkspace(ros::NodeHandle& nh)
 				ROS_FATAL("Unknown tag type of tag %d", tagId);
 				exit(-1);
 			}
+		} else
+		{
+			ROS_FATAL("Tag type and/or position is unspecified for tag %d", tagId);
+			exit(-1);
 		}
 	}
+}
+
+
+void FilterInterface_RCARS::safeWorkspace(ros::NodeHandle& nh)
+{
+	ROS_INFO("Saving workspace to %s.", filename);
+	std::vector<int> calibratedTags;
+
+	for (size_t i=0; i< safe_.nDynamicTags_; i++)
+	{
+		int tagId = safe_.template get<mtState::_aux>().dynamicIds_[i];
+		if (tagId != -1)
+		{
+			if (tagViewCount_[tagId] > calibrationThreshold_)
+			{
+				calibratedTags.push_back(i);
+			}
+		}
+	}
+
+	ROS_INFO("%d dynamic calibrated tags.", calibratedTags.size());
+
+	nh.deleteParam("workspace/calibratedTags");
+	nh.setParam("workspace/calibratedTags", calibratedTags);
 }
 
 void FilterInterface_RCARS::initializeFilterWithIMUMeas(const mtPredictionMeas& meas, const double& t) {
@@ -178,46 +210,47 @@ void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::Const
   if (!isInitialized_) { return; }
 
   // Create and fill the update measurement
-  mtUpdateMeas updateMeas;
+  mtUpdateMeas updateMeas(vision_msg->tags.size());
 
   // Read out the tags from the current TagArray measurement
   for (size_t i=0; i<vision_msg->tags.size(); i++){
     // Copy the tag index
-    updateMeas.template get<mtUpdateMeas::_aux>().tagId_ = vision_msg->tags[i].id;
+    updateMeas.template get<mtUpdateMeas::_aux>().tagIds_[i] = vision_msg->tags[i].id;
+
+    tagViewCount_[vision_msg->tags[i].id]++;
+    if (vision_msg->tags.size() > 1) { tagViewOverlapCount_[vision_msg->tags[i].id]++; }
 
     // by default tags are dynamic
-    updateMeas.template get<mtUpdateMeas::_aux>().tagType_ = rcars::DYNAMIC_TAG;
+    updateMeas.template get<mtUpdateMeas::_aux>().tagTypes_[i] = rcars::DYNAMIC_TAG;
 
     // check if tag is of special type
-    auto it = tagType_.find(updateMeas.template get<mtUpdateMeas::_aux>().tagId_);
+    auto it = tagType_.find(updateMeas.template get<mtUpdateMeas::_aux>().tagIds_[i]);
     if (it != tagType_.end())
     {
-    	updateMeas.template get<mtUpdateMeas::_aux>().tagType_ = it->second;
+    	updateMeas.template get<mtUpdateMeas::_aux>().tagTypes_[i] = it->second;
     }
 
     // Copy the corner measurements
     for (size_t j=0; j<4; j++){
-      updateMeas.template get<mtUpdateMeas::_cor>()(2*j) = vision_msg->tags[i].corners[j].x;
-      updateMeas.template get<mtUpdateMeas::_cor>()(2*j+1) = vision_msg->tags[i].corners[j].y;
+      updateMeas.template get<mtUpdateMeas::_aux>().VrVC_[i](2*j) = vision_msg->tags[i].corners[j].x;
+      updateMeas.template get<mtUpdateMeas::_aux>().VrVC_[i](2*j+1) = vision_msg->tags[i].corners[j].y;
     }
 
     // Copy the estimated pose from the detector
     const geometry_msgs::Pose& pose = vision_msg->tags[i].pose;
-    updateMeas.template get<mtUpdateMeas::_aux>().tagPos_ = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
-    updateMeas.template get<mtUpdateMeas::_aux>().tagAtt_ = rot::RotationQuaternionPD(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+    updateMeas.template get<mtUpdateMeas::_aux>().tagPos_[i] = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
+    updateMeas.template get<mtUpdateMeas::_aux>().tagAtt_[i] = rot::RotationQuaternionPD(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
 
     // if we have a static tag, we copy the position and orientation data
-    if (updateMeas.template get<mtUpdateMeas::_aux>().tagType_ == rcars::STATIC_TAG)
+    if (updateMeas.template get<mtUpdateMeas::_aux>().tagType_[i] == rcars::STATIC_TAG)
     {
-    	updateMeas.template get<mtUpdateMeas::_aux>().IrIT_ = IrIT_[updateMeas.template get<mtUpdateMeas::_aux>().tagId_];
-    	updateMeas.template get<mtUpdateMeas::_aux>().qTI_ = qTI_[updateMeas.template get<mtUpdateMeas::_aux>().tagId_];
+    	updateMeas.template get<mtUpdateMeas::_aux>().IrIT_[i] = IrIT_[updateMeas.template get<mtUpdateMeas::_aux>().tagId_];
+    	updateMeas.template get<mtUpdateMeas::_aux>().qTI_[i] = qTI_[updateMeas.template get<mtUpdateMeas::_aux>().tagId_];
     }
-
-    // Add the update measurement
-     addUpdateMeas(updateMeas, vision_msg->header.stamp.toSec());
   }
 
   // Add the update measurement and update
+  addUpdateMeas(updateMeas, vision_msg->header.stamp.toSec());
   updateAndPublish();
 }
 

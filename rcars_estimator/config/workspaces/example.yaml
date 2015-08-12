@@ -42,14 +42,4 @@ tags:
           y : 0.1
           z : 0.0
 
-  tag2: 
-    type : dynamic 
-    pose:
-       position:
-          x : 0.0
-          y : 0.0
-          z : 0.0
-       orientation:
-          yaw : 1.0
-
 
