@@ -120,6 +120,7 @@ void fillRosMessage(const vector<AprilTags::TagDetection>& detections, rcars_det
 
 			// convert the rotation matrix to a quaternion
 			rot::RotationQuaternionPD quat(rotationMatrix);
+			quat.invert();
 
 			// combine again to a transformation using kindr
 			pose::HomogeneousTransformationPosition3RotationQuaternionD trans(pos, quat);
