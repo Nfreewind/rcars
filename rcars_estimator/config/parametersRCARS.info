@@ -58,7 +58,7 @@ Init
 Update0
 {
     PixelStd 2.0
-    MahalanobisTh0 15000000.5823996
+    MahalanobisTh0 15.5823996
     tagSize 0.16
     initTagPosCov 10.0
     initTagAttCov 1.0
