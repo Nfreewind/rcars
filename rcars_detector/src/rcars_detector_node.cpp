@@ -23,6 +23,7 @@
 
 #include <sstream>
 #include <math.h>
+#include <atomic>
 
 using namespace std;
 
@@ -63,11 +64,14 @@ AprilTags::TagDetector* tagDetector;
 // ROS parameters
 bool publishDebugImage = false;
 std::string tagFamily = "";
-double tagSize = 0.15;
+double tagSize = 0.161;
 
 // Camera parameters
 sensor_msgs::CameraInfo camInfo;
 bool camInfoAvailable = false;
+
+std::atomic<uint_fast32_t> processedSequence(0);
+std::atomic<uint8_t> speedWarningCounter(0);
 
 
 /** \brief Takes the detector information and converts it into a ros message
@@ -231,6 +235,18 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imageTransport)
 {
 	ROS_DEBUG("received new image");
 
+	uint32_t lastSequence = processedSequence.exchange(imageTransport->header.seq);
+
+	if (imageTransport->header.seq != lastSequence+1)
+	{
+		speedWarningCounter++;
+
+		if (speedWarningCounter.load() % 10 == 0)
+		{
+			ROS_WARN("Detector running too slow, dropping images. Consider enabling multithreading or lowering the frame rate or resolution of camera images.");
+		}
+	}
+
 	// convert incoming image to OpenCV
 	try
 	{
@@ -294,8 +310,17 @@ int main(int argc, char **argv)
 	ros::NodeHandle nh;
 	image_transport::ImageTransport it(nh);
 
+	// multi threading
+	bool useMultiThreading = false;
+	int nThreads = 0;
+	ros::param::param<bool>("~useMultiThreading", useMultiThreading, false);
+	ros::param::param<int>("~threadsForMultiThreading", nThreads, 0);
+
 	// subscribe to images
-	imageSubscriber = it.subscribe("/cam0/image_rect", 5, imageCallback);
+	int imageQueueSize = 2;
+	if (nThreads > 1)
+		imageQueueSize = nThreads*2;
+	imageSubscriber = it.subscribe("/cam0/image_rect", imageQueueSize, imageCallback);
 
 	// subscribe to camera info
 	cameraInfoSubscriber = nh.subscribe("/cam0/camera_info", 5, cameraInfoCallback);
@@ -316,17 +341,11 @@ int main(int argc, char **argv)
 
 	// setup detector
 	tagDetector = new AprilTags::TagDetector(tagCodes);
-	ros::param::param<double>("~tagSize", tagSize, 0.161);
+	ros::param::param<double>("~tagSize", tagSize, tagSize);
 
 	// setup debug
 	ros::param::param<bool>("~publishDebugImage", publishDebugImage, false);
 	ROS_INFO("Debug print is (enabled/disabled): %i", publishDebugImage);
-
-	// multi threading
-	bool useMultiThreading = false;
-	int nThreads = 0;
-	ros::param::param<bool>("~useMultiThreading", useMultiThreading, false);
-	ros::param::param<int>("~threadsForMultiThreading", nThreads, 0);
 
 	if (nThreads < 0)
 	{
