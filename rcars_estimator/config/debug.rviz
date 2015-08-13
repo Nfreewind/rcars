@@ -9,6 +9,7 @@ Panels:
         - /Image1
         - /PoseArray1
         - /Pose2
+        - /Pose3
       Splitter Ratio: 0.5
     Tree Height: 349
   - Class: rviz/Selection
@@ -29,7 +30,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: Image
 Visualization Manager:
   Class: ""
   Displays:
@@ -108,7 +109,7 @@ Visualization Manager:
       Name: Pose
       Shaft Length: 1
       Shaft Radius: 0.05
-      Shape: Arrow
+      Shape: Axes
       Topic: /rcars/estimator/filterPose
       Value: true
   Enabled: true
@@ -135,7 +136,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 9.01775
+      Distance: 15.8924
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
@@ -147,10 +148,10 @@ Visualization Manager:
         Z: 0.506087
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.864798
+      Pitch: 0.394798
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 0.778132
+      Yaw: 0.768132
     Saved: ~
 Window Geometry:
   Displays:

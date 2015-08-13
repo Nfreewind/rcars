@@ -86,7 +86,7 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
    */
   int hybridIds_[nHybridTags];
   /*!
-   * Iterator for measurement indices
+   * Internal iterator for measurement indices
    */
   int measIndIterator_;
   /*!
@@ -273,7 +273,7 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
   using Base::state_;
   using Base::cov_;
   using Base::usePredictionMerge_;
-  Eigen::Matrix<double,6,6> dynamicTagInitCov_; // TODO register
+  Eigen::Matrix<double,6,6> dynamicTagInitCov_;
   /*!
    * Constructor
    */
@@ -286,11 +286,8 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
    * VrVT and qTV are used for initializing the tag position.
    */
   void makeNewDynamicTag(unsigned int newInd,int tagId,const Eigen::Vector3d& VrVT,const rot::RotationQuaternionPD& qTV){
-    // IrIT = IrIB + qIM*(MrMV+qVM^T*VrVT)
-    state_.template get<mtState::_dyp>(newInd) = state_.template get<mtState::_pos>()
-        + state_.template get<mtState::_att>().rotate((state_.template get<mtState::_vep>()+state_.template get<mtState::_vea>().inverseRotate(VrVT)).eval());
-    // qTI = (qIM*qVM^T*qTV^T)^T
-    state_.template get<mtState::_dya>(newInd) = (state_.template get<mtState::_att>()*state_.template get<mtState::_vea>().inverted()*qTV.inverted()).inverted();
+    state_.template get<mtState::_dyp>(newInd) = VrVT;
+    state_.template get<mtState::_dya>(newInd) = qTV;
     state_.template get<mtState::_aux>().dynamicIds_[newInd] = tagId;
     // Reset the covariance terms associated with the new tag state
     cov_.template block<mtState::D_,3>(0,mtState::template getId<mtState::_dyp>(newInd)).setZero();
@@ -307,35 +304,13 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
 //    state_.template get<mtState::_att>() = qMI.inverted();
 //  }
   void initWithAccelerometer(const V3D& fMeasInit){
-  V3D unitZ(0,0,1);
-  if(fMeasInit.norm()>1e-6){
-    state_.template get<mtState::_att>().setFromVectors(unitZ,fMeasInit);
-  } else {
-    state_.template get<mtState::_att>().setIdentity();
+    V3D unitZ(0,0,1);
+    if(fMeasInit.norm()>1e-6){
+      state_.template get<mtState::_att>().setFromVectors(unitZ,fMeasInit);
+    } else {
+      state_.template get<mtState::_att>().setIdentity();
+    }
   }
-}
-//  void initializeFeatureState(unsigned int i, V3D n, double d,const Eigen::Matrix<double,3,3>& initCov){
-//    state_.template get<mtState::_dep>(i) = d;
-//    state_.template get<mtState::_nor>(i).setFromVector(n);
-//    cov_.template block<mtState::D_,1>(0,mtState::template getId<mtState::_dep>(i)).setZero();
-//    cov_.template block<1,mtState::D_>(mtState::template getId<mtState::_dep>(i),0).setZero();
-//    cov_.template block<mtState::D_,2>(0,mtState::template getId<mtState::_nor>(i)).setZero();
-//    cov_.template block<2,mtState::D_>(mtState::template getId<mtState::_nor>(i),0).setZero();
-//    cov_.template block<1,1>(mtState::template getId<mtState::_dep>(i),mtState::template getId<mtState::_dep>(i)) = initCov.block<1,1>(0,0);
-//    cov_.template block<1,2>(mtState::template getId<mtState::_dep>(i),mtState::template getId<mtState::_nor>(i)) = initCov.block<1,2>(0,1);
-//    cov_.template block<2,1>(mtState::template getId<mtState::_nor>(i),mtState::template getId<mtState::_dep>(i)) = initCov.block<2,1>(1,0);
-//    cov_.template block<2,2>(mtState::template getId<mtState::_nor>(i),mtState::template getId<mtState::_nor>(i)) = initCov.block<2,2>(1,1);
-//  }
-//  void removeFeature(unsigned int i){
-//    state_.template get<mtState::_dep>(i) = 1.0;
-//    state_.template get<mtState::_nor>(i).setIdentity();
-//    cov_.template block<mtState::D_,1>(0,mtState::template getId<mtState::_dep>(i)).setZero();
-//    cov_.template block<1,mtState::D_>(mtState::template getId<mtState::_dep>(i),0).setZero();
-//    cov_.template block<mtState::D_,2>(0,mtState::template getId<mtState::_nor>(i)).setZero();
-//    cov_.template block<2,mtState::D_>(mtState::template getId<mtState::_nor>(i),0).setZero();
-//    cov_.template block<1,1>(mtState::template getId<mtState::_dep>(i),mtState::template getId<mtState::_dep>(i)).setIdentity();
-//    cov_.template block<2,2>(mtState::template getId<mtState::_nor>(i),mtState::template getId<mtState::_nor>(i)).setIdentity();
-//  }
 };
 
 }
