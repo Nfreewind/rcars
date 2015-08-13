@@ -47,6 +47,14 @@ int main(int argc, char** argv){
   tagUpdateMeas.get<mtTagUpdateMeas::_aux>().resize(1);
   tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagIds_[0] = 0;
   tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagTypes_[0] = rcars::DYNAMIC_TAG;
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().VrVC_[0] << 204.292, 152.97, 251.154, 152.893, 204.117, 192.845, 252.616, 191.779;
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagPos_[0] = V3D(-0.543614, -0.213167, 1.55529);
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagAtt_[0] = QPD(-0.192343, 0.972483, -0.0485181, 0.122176);
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().IrIT_[0] = V3D(-0.543614, -0.213167, 1.55529);
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().qTI_[0] = QPD(-0.192343, 0.972483, -0.0485181, 0.122176);
+  tagUpdateMeas.print();
+  mTagUpdate.testJacs(state,tagUpdateMeas,1e-8,1e-5,0.1);
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagTypes_[0] = rcars::STATIC_TAG;
   mTagUpdate.testJacs(state,tagUpdateMeas,1e-8,1e-5,0.1);
 
   return 0;
