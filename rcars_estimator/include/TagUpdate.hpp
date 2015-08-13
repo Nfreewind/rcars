@@ -361,6 +361,9 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
     if(measInd == meas.template get<mtMeas::_aux>().tagIds_.size()){
       isFinished = true;
     }
+    if(verbose_ && outlierDetection.isOutlier(0)){
+      std::cout << "  \033[33m WARNING: outlier detected! \033[0m" << std::endl;
+    }
   };
 };
 
