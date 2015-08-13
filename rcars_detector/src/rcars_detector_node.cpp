@@ -52,9 +52,6 @@ ros::Subscriber cameraInfoSubscriber;
 // subscribes to the input image
 image_transport::Subscriber imageSubscriber;
 
-// pointer to gray-scale image
-cv_bridge::CvImagePtr cv_ptr_gray;
-
 // pointer to instance of the tag detecter
 AprilTags::TagDetector* tagDetector;
 
@@ -177,10 +174,13 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imageTransport)
 		}
 	}
 
+	// pointer to gray-scale image
+	cv_bridge::CvImageConstPtr cv_ptr_gray;
+
 	// convert incoming image to OpenCV
 	try
 	{
-		cv_ptr_gray = cv_bridge::toCvCopy(imageTransport, sensor_msgs::image_encodings::MONO8);
+		cv_ptr_gray = cv_bridge::toCvShare(imageTransport, sensor_msgs::image_encodings::MONO8);
 	}
 	catch (cv_bridge::Exception& e)
 	{
@@ -189,7 +189,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imageTransport)
 	}
 
 	// get a short reference to the image
-	cv::Mat& image = cv_ptr_gray->image;
+	const cv::Mat& image = cv_ptr_gray->image;
 
 	// Create vector for detections (used for apriltag library)
 	vector<AprilTags::TagDetection> detections;
