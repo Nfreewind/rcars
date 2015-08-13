@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2014, Autonomous Systems Lab
+* Copyright (c) 2014, Michael Neunert & Michael Blösch
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -9,7 +9,7 @@
 * * Redistributions in binary form must reproduce the above copyright
 * notice, this list of conditions and the following disclaimer in the
 * documentation and/or other materials provided with the distribution.
-* * Neither the name of the Autonomous Systems Lab, ETH Zurich nor the
+* * Neither the name of the ETH Zurich nor the
 * names of its contributors may be used to endorse or promote products
 * derived from this software without specific prior written permission.
 *
@@ -135,13 +135,13 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
    * Returns the position of the IMU in the inertial frame
    * IrIM
    */
-  Eigen::Vector3d get_IrIM(const mtFilterState& filterState){
+  V3D get_IrIM(const mtFilterState& filterState){
     return filterState.state_.template get<mtState::_pos>();
   }
-  Eigen::Vector3d get_IrIM_front(){
+  V3D get_IrIM_front(){
     return get_IrIM(front_);
   }
-  Eigen::Vector3d get_IrIM_safe(){
+  V3D get_IrIM_safe(){
     return get_IrIM(safe_);
   }
 
@@ -149,7 +149,7 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
    * Returns the robocentric rotational rate w.r.t. the IMU frame
    * MwIM
    */
-  Eigen::Vector3d get_MwIM(const mtFilterState& filterState){
+  V3D get_MwIM(const mtFilterState& filterState){
     return filterState.state_.template get<mtState::_aux>().MwIMest_;
   }
 
@@ -157,22 +157,76 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
    * Returns the velocity w.r.t. the inertial frame
    * IvM = qIM*(MvM)
    */
-  Eigen::Vector3d get_IvM(const mtFilterState& filterState){
-    return filterState.state_.template get<mtState::_att>().rotate(Eigen::Vector3d(-filterState.state_.template get<mtState::_vel>()));
+  V3D get_IvM(const mtFilterState& filterState){
+    return filterState.state_.template get<mtState::_att>().rotate(V3D(-filterState.state_.template get<mtState::_vel>()));
   }
 
   /*!
    * Returns the attitude of the IMU w.r.t. the inertial frame
    * qMI = (qIM)^T
    */
-  rot::RotationQuaternionPD get_qMI(const mtFilterState& filterState){
+  QPD get_qMI(const mtFilterState& filterState){
     return filterState.state_.template get<mtState::_att>().inverted();
   }
-  rot::RotationQuaternionPD get_qMI_front(){
+  QPD get_qMI_front(){
     return get_qMI(front_);
   }
-  rot::RotationQuaternionPD get_qMI_safe(){
+  QPD get_qMI_safe(){
     return get_qMI(safe_);
+  }
+
+  /*!
+   * Returns the position of the dynamic tag i w.r.t. the camera frame
+   */
+  V3D get_VrVT_dyn(const mtFilterState& filterState, int i){
+    return filterState.state_.template get<mtState::_dyp>(i);
+  }
+  V3D get_VrVT_dyn_front(int i){
+    return get_VrVT_dyn(front_,i);
+  }
+  V3D get_VrVT_dyn_safe(int i){
+    return get_VrVT_dyn(safe_,i);
+  }
+
+  /*!
+   * Returns the attitude of the dynamic tag i w.r.t. the camera frame
+   */
+  QPD get_qTV_dyn(const mtFilterState& filterState, int i){
+    return filterState.state_.template get<mtState::_dya>(i);
+  }
+  QPD get_qTV_dyn_front(int i){
+    return get_qTV_dyn(front_,i);
+  }
+  QPD get_qTV_dyn_safe(int i){
+    return get_qTV_dyn(safe_,i);
+  }
+  /*!
+   * Returns the position of the dynamic tag i w.r.t. the inertial frame
+   * IrIT = IrIM + qIM*(MrMV + qVM^T*(VrVT))
+   */
+  V3D get_IrIT_dyn(const mtFilterState& filterState, int i){
+    return filterState.state_.template get<mtState::_pos>() + filterState.state_.template get<mtState::_att>().rotate(V3D(filterState.state_.template get<mtState::_vep>()
+        + filterState.state_.template get<mtState::_vea>().inverseRotate(filterState.state_.template get<mtState::_dyp>(i))));
+  }
+  V3D get_IrIT_dyn_front(int i){
+    return get_IrIT_dyn(front_,i);
+  }
+  V3D get_IrIT_dyn_safe(int i){
+    return get_IrIT_dyn(safe_,i);
+  }
+
+  /*!
+   * Returns the attitude of the dynamic tag i w.r.t. the inertial frame
+   * qTI = qTV*qVM*qIM^T
+   */
+  QPD get_qTI_dyn(const mtFilterState& filterState, int i){
+    return filterState.state_.template get<mtState::_dya>(i)*filterState.state_.template get<mtState::_vea>()*filterState.state_.template get<mtState::_att>().inverted();
+  }
+  QPD get_qTI_dyn_front(int i){
+    return get_qTI_dyn(front_,i);
+  }
+  QPD get_qTI_dyn_safe(int i){
+    return get_qTI_dyn(safe_,i);
   }
 
   /*!
@@ -186,7 +240,7 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
   /*!
    * Compute commonly used output filterState.state_
    */
-  void getOutput(const mtFilterState& filterState,Eigen::Vector3d& IrIM,rot::RotationQuaternionPD& qIM,Eigen::Vector3d& MvM,Eigen::Vector3d& MwM){
+  void getOutput(const mtFilterState& filterState,V3D& IrIM,QPD& qIM,V3D& MvM,V3D& MwM){
     /*!
      * Position of body expressed in inertial frame
      */

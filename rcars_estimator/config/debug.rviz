@@ -6,10 +6,10 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /Image1
         - /PoseArray1
         - /Pose1
         - /Pose2
-        - /Image1
       Splitter Ratio: 0.5
     Tree Height: 250
   - Class: rviz/Selection

@@ -1,3 +1,31 @@
+/*
+* Copyright (c) 2014, Michael Neunert & Michael Blösch
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are met:
+* * Redistributions of source code must retain the above copyright
+* notice, this list of conditions and the following disclaimer.
+* * Redistributions in binary form must reproduce the above copyright
+* notice, this list of conditions and the following disclaimer in the
+* documentation and/or other materials provided with the distribution.
+* * Neither the name of the ETH Zurich nor the
+* names of its contributors may be used to endorse or promote products
+* derived from this software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+* ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+* FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+* SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+* CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*
+*/
+
 #ifndef RCARS_FILTERSTATES_HPP_
 #define RCARS_FILTERSTATES_HPP_
 
@@ -58,7 +86,7 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
    */
   int hybridIds_[nHybridTags];
   /*!
-   * Iterator for measurement indices
+   * Internal iterator for measurement indices
    */
   int measIndIterator_;
   /*!
@@ -245,7 +273,7 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
   using Base::state_;
   using Base::cov_;
   using Base::usePredictionMerge_;
-  Eigen::Matrix<double,6,6> dynamicTagInitCov_; // TODO register
+  Eigen::Matrix<double,6,6> dynamicTagInitCov_;
   /*!
    * Constructor
    */
@@ -258,11 +286,8 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
    * VrVT and qTV are used for initializing the tag position.
    */
   void makeNewDynamicTag(unsigned int newInd,int tagId,const Eigen::Vector3d& VrVT,const rot::RotationQuaternionPD& qTV){
-    // IrIT = IrIB + qIM*(MrMV+qVM^T*VrVT)
-    state_.template get<mtState::_dyp>(newInd) = state_.template get<mtState::_pos>()
-        + state_.template get<mtState::_att>().rotate((state_.template get<mtState::_vep>()+state_.template get<mtState::_vea>().inverseRotate(VrVT)).eval());
-    // qTI = (qIM*qVM^T*qTV^T)^T
-    state_.template get<mtState::_dya>(newInd) = (state_.template get<mtState::_att>()*state_.template get<mtState::_vea>().inverted()*qTV.inverted()).inverted();
+    state_.template get<mtState::_dyp>(newInd) = VrVT;
+    state_.template get<mtState::_dya>(newInd) = qTV;
     state_.template get<mtState::_aux>().dynamicIds_[newInd] = tagId;
     // Reset the covariance terms associated with the new tag state
     cov_.template block<mtState::D_,3>(0,mtState::template getId<mtState::_dyp>(newInd)).setZero();
@@ -279,35 +304,13 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
 //    state_.template get<mtState::_att>() = qMI.inverted();
 //  }
   void initWithAccelerometer(const V3D& fMeasInit){
-  V3D unitZ(0,0,1);
-  if(fMeasInit.norm()>1e-6){
-    state_.template get<mtState::_att>().setFromVectors(unitZ,fMeasInit);
-  } else {
-    state_.template get<mtState::_att>().setIdentity();
+    V3D unitZ(0,0,1);
+    if(fMeasInit.norm()>1e-6){
+      state_.template get<mtState::_att>().setFromVectors(unitZ,fMeasInit);
+    } else {
+      state_.template get<mtState::_att>().setIdentity();
+    }
   }
-}
-//  void initializeFeatureState(unsigned int i, V3D n, double d,const Eigen::Matrix<double,3,3>& initCov){
-//    state_.template get<mtState::_dep>(i) = d;
-//    state_.template get<mtState::_nor>(i).setFromVector(n);
-//    cov_.template block<mtState::D_,1>(0,mtState::template getId<mtState::_dep>(i)).setZero();
-//    cov_.template block<1,mtState::D_>(mtState::template getId<mtState::_dep>(i),0).setZero();
-//    cov_.template block<mtState::D_,2>(0,mtState::template getId<mtState::_nor>(i)).setZero();
-//    cov_.template block<2,mtState::D_>(mtState::template getId<mtState::_nor>(i),0).setZero();
-//    cov_.template block<1,1>(mtState::template getId<mtState::_dep>(i),mtState::template getId<mtState::_dep>(i)) = initCov.block<1,1>(0,0);
-//    cov_.template block<1,2>(mtState::template getId<mtState::_dep>(i),mtState::template getId<mtState::_nor>(i)) = initCov.block<1,2>(0,1);
-//    cov_.template block<2,1>(mtState::template getId<mtState::_nor>(i),mtState::template getId<mtState::_dep>(i)) = initCov.block<2,1>(1,0);
-//    cov_.template block<2,2>(mtState::template getId<mtState::_nor>(i),mtState::template getId<mtState::_nor>(i)) = initCov.block<2,2>(1,1);
-//  }
-//  void removeFeature(unsigned int i){
-//    state_.template get<mtState::_dep>(i) = 1.0;
-//    state_.template get<mtState::_nor>(i).setIdentity();
-//    cov_.template block<mtState::D_,1>(0,mtState::template getId<mtState::_dep>(i)).setZero();
-//    cov_.template block<1,mtState::D_>(mtState::template getId<mtState::_dep>(i),0).setZero();
-//    cov_.template block<mtState::D_,2>(0,mtState::template getId<mtState::_nor>(i)).setZero();
-//    cov_.template block<2,mtState::D_>(mtState::template getId<mtState::_nor>(i),0).setZero();
-//    cov_.template block<1,1>(mtState::template getId<mtState::_dep>(i),mtState::template getId<mtState::_dep>(i)).setIdentity();
-//    cov_.template block<2,2>(mtState::template getId<mtState::_nor>(i),mtState::template getId<mtState::_nor>(i)).setIdentity();
-//  }
 };
 
 }

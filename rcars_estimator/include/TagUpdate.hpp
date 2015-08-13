@@ -1,3 +1,31 @@
+/*
+* Copyright (c) 2014, Michael Neunert & Michael Blösch
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are met:
+* * Redistributions of source code must retain the above copyright
+* notice, this list of conditions and the following disclaimer.
+* * Redistributions in binary form must reproduce the above copyright
+* notice, this list of conditions and the following disclaimer in the
+* documentation and/or other materials provided with the distribution.
+* * Neither the name of the ETH Zurich nor the
+* names of its contributors may be used to endorse or promote products
+* derived from this software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+* ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+* FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+* DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+* SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+* CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+* OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*
+*/
+
 #ifndef RCARS_TAGUPDATE_HPP_
 #define RCARS_TAGUPDATE_HPP_
 
@@ -189,23 +217,19 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
   void eval(mtInnovation& y, const mtState& state, const mtMeas& meas, const mtNoise noise, double dt = 0.0) const{
     const int& measInd = state.template get<mtState::_aux>().measIndIterator_;
     /* Reprojection error calculation.
-     * Compute position of camera in inertial frame:
-     * IrIV = IrIM  + qIM*(MrMV)
-     * Compute position of tag corner in inertial frame:
-     * IrIC = IrIT + qTI^T*TrTC
-     * Take the difference of the above values and transform into current camera frame
-     * VrVC = qVM*qIM^T*(IrIC-IrIV)
+     * Compute pose of tag base in camera frame:
+     * VrVT = qVM*(qIM^T*(IrIT - IrIM) - MrMV)
+     * qTV = qTI*qIM*qVM^T
+     * Compute position of corners in camera frame:
+     * VrVC = VrVT+qTV^T*TrTC
      * Map to pixel coordinates by multiplying with camera matrix and projecting onto image plane
      * p = project_z(K*VrVC)
      */
-    QPD qTI;
-    V3D IrIV;
-    V3D IrIT;
-    V3D IrIC;
+    QPD qTV;
+    V3D VrVT;
     V3D VrVC;
     V3D TrTC;
     V3D p;
-    IrIV = state.template get<mtState::_pos>() + state.template get<mtState::_att>().rotate(state.template get<mtState::_vep>());
     y.template get<mtInnovation::_cor>().setZero();
     const int tagId = meas.template get<mtMeas::_aux>().tagIds_[measInd];
     bool isValidUpdate = false;
@@ -215,20 +239,19 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
         if(ind != -1){
           isValidUpdate = true;
           if(verbose_) std::cout << "Performing update on dynamic tag, ID = " << tagId << ", ind = " << ind << std::endl;
-          IrIT = state.template get<mtState::_dyp>(ind);
-          qTI = state.template get<mtState::_dya>(ind);
+          VrVT = state.template get<mtState::_dyp>(ind);
+          qTV = state.template get<mtState::_dya>(ind);
         }
       } else if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == STATIC_TAG){
         isValidUpdate = true;
         if(verbose_) std::cout << "Performing update on static tag, ID = " << tagId << std::endl;
-        IrIT = meas.template get<mtMeas::_aux>().IrIT_[measInd];
-        qTI = meas.template get<mtMeas::_aux>().qTI_[measInd];
+        VrVT = state.template get<mtState::_vea>().rotate(V3D(state.template get<mtState::_att>().inverseRotate(V3D(meas.template get<mtMeas::_aux>().IrIT_[measInd] - state.template get<mtState::_pos>())) - state.template get<mtState::_vep>()));
+        qTV = meas.template get<mtMeas::_aux>().qTI_[measInd]*state.template get<mtState::_att>()*state.template get<mtState::_vea>().inverted();
       }
       if(isValidUpdate){
         for(unsigned int j=0;j<4;j++){
           TrTC = TrTC_.col(j);
-          IrIC = IrIT + qTI.inverseRotate(TrTC);
-          VrVC = (state.template get<mtState::_vea>()*state.template get<mtState::_att>().inverted()).rotate(V3D(IrIC-IrIV));
+          VrVC = VrVT+qTV.inverseRotate(TrTC);
           p = CameraMatrix_*VrVC;
           double z = p(2);
           p = p/z;
@@ -249,17 +272,14 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
   void jacInput(mtJacInput& F, const mtState& state, const mtMeas& meas, double dt = 0.0) const{
     const int& measInd = state.template get<mtState::_aux>().measIndIterator_;
     F.setZero();
-    QPD qTI;
-    V3D IrIV;
-    V3D IrIT;
-    V3D IrIC;
+    QPD qTV;
+    V3D VrVT;
     V3D VrVC;
     V3D TrTC;
     V3D p;
     Eigen::Matrix3d M3; // Temporary 3d matrix
     Eigen::Matrix<double,1,3> J1; // Partial jacobian with respect to first coordinate
     Eigen::Matrix<double,1,3> J2; // Partial jacobian with respect to second coordinate
-    IrIV = state.template get<mtState::_pos>() + state.template get<mtState::_att>().rotate(state.template get<mtState::_vep>());
     const int tagId = meas.template get<mtMeas::_aux>().tagIds_[measInd];
     bool isValidUpdate = false;
     if(tagId != -1){
@@ -267,19 +287,18 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
         const int ind = state.template get<mtState::_aux>().getDynamicIndFromTagId(tagId);
         if(ind != -1){
           isValidUpdate = true;
-          IrIT = state.template get<mtState::_dyp>(ind);
-          qTI = state.template get<mtState::_dya>(ind);
+          VrVT = state.template get<mtState::_dyp>(ind);
+          qTV = state.template get<mtState::_dya>(ind);
         }
       } else if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == STATIC_TAG){
         isValidUpdate = true;
-        IrIT = meas.template get<mtMeas::_aux>().IrIT_[measInd];
-        qTI = meas.template get<mtMeas::_aux>().qTI_[measInd];
+        VrVT = state.template get<mtState::_vea>().rotate(V3D(state.template get<mtState::_att>().inverseRotate(V3D(meas.template get<mtMeas::_aux>().IrIT_[measInd] - state.template get<mtState::_pos>())) - state.template get<mtState::_vep>()));
+        qTV = meas.template get<mtMeas::_aux>().qTI_[measInd]*state.template get<mtState::_att>()*state.template get<mtState::_vea>().inverted();
       }
       if(isValidUpdate){
         for(unsigned int j=0;j<4;j++){
           TrTC = TrTC_.col(j);
-          IrIC = IrIT + qTI.inverseRotate(TrTC);
-          VrVC = (state.template get<mtState::_vea>()*state.template get<mtState::_att>().inverted()).rotate(V3D(IrIC-IrIV));
+          VrVC = VrVT+qTV.inverseRotate(TrTC);
           p = CameraMatrix_*VrVC;
           J1.setZero();
           J1(0,0) = 1/p(2);
@@ -289,26 +308,28 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
           J2(0,1) = 1/p(2);
           J2(0,2) = -p(1)/pow(p(2),2);
           J2 = J2*CameraMatrix_;
-          M3 = -rot::RotationMatrixPD(state.template get<mtState::_vea>()*state.template get<mtState::_att>().inverted()).matrix();
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_pos>()) = J1*M3;
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_pos>()) = J2*M3;
-          M3 = -rot::RotationMatrixPD(state.template get<mtState::_vea>()*state.template get<mtState::_att>().inverted()).matrix()*gSM(IrIC-state.template get<mtState::_pos>());
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_att>()) = J1*M3;
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_att>()) = J2*M3;
-          M3 = gSM(VrVC);
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_vea>()) = J1*M3;
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_vea>()) = J2*M3;
-          M3 = -rot::RotationMatrixPD(state.template get<mtState::_vea>()).matrix();
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_vep>()) = J1*M3;
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_vep>()) = J2*M3;
           if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == DYNAMIC_TAG){
             const int ind = state.template get<mtState::_aux>().getDynamicIndFromTagId(tagId);
-            M3 = rot::RotationMatrixPD(state.template get<mtState::_vea>()*state.template get<mtState::_att>().inverted()).matrix();
+            M3 = M3D::Identity();
             F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_dyp>(ind)) = J1*M3;
             F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_dyp>(ind)) = J2*M3;
-            M3 = -rot::RotationMatrixPD(state.template get<mtState::_vea>()*state.template get<mtState::_att>().inverted()*state.template get<mtState::_dya>(ind).inverted()).matrix()*gSM(TrTC);
+            M3 = -rot::RotationMatrixPD(qTV.inverted()).matrix()*gSM(TrTC);
             F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_dya>(ind)) = J1*M3;
             F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_dya>(ind)) = J2*M3;
+          } else if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == STATIC_TAG){
+            M3 = -rot::RotationMatrixPD(state.template get<mtState::_vea>()*state.template get<mtState::_att>().inverted()).matrix();
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_pos>()) = J1*M3;
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_pos>()) = J2*M3;
+            M3 = -rot::RotationMatrixPD(state.template get<mtState::_vea>()*state.template get<mtState::_att>().inverted()).matrix()
+                *gSM(meas.template get<mtMeas::_aux>().IrIT_[measInd] + meas.template get<mtMeas::_aux>().qTI_[measInd].inverseRotate(TrTC) - state.template get<mtState::_pos>());
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_att>()) = J1*M3;
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_att>()) = J2*M3;
+            M3 = gSM(VrVC);
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_vea>()) = J1*M3;
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_vea>()) = J2*M3;
+            M3 = -rot::RotationMatrixPD(state.template get<mtState::_vea>()).matrix();
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_vep>()) = J1*M3;
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_vep>()) = J2*M3;
           }
         }
       }
@@ -342,8 +363,8 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
           if(newInd >= 0){
             filterState.makeNewDynamicTag(newInd,tagId,meas.template get<mtMeas::_aux>().tagPos_[measInd],meas.template get<mtMeas::_aux>().tagAtt_[measInd]); // Add the new tag to the filter
             if(verbose_) std::cout << "Added new dynamic Tag with ID " << tagId << " at index " << newInd << std::endl;
-            if(verbose_) std::cout << "  IrIT: " << filterState.state_.template get<mtState::_dyp>().transpose() << std::endl;
-            if(verbose_) std::cout << "  qTI: " << filterState.state_.template get<mtState::_dya>() << std::endl;
+            if(verbose_) std::cout << "  VrVT: " << filterState.state_.template get<mtState::_dyp>().transpose() << std::endl;
+            if(verbose_) std::cout << "  qTV: " << filterState.state_.template get<mtState::_dya>() << std::endl;
           } else {
             if(verbose_) std::cout << "Was not able to create new tag, maximal number of dynamic tags reached" << std::endl;
           }
