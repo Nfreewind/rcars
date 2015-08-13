@@ -276,6 +276,8 @@ void FilterInterface_RCARS::imuCallback(const sensor_msgs::Imu::ConstPtr& imu_ms
   predictionMeas.template get<mtPredictionMeas::_acc>() = Eigen::Vector3d(imu_msg->linear_acceleration.x,imu_msg->linear_acceleration.y,imu_msg->linear_acceleration.z);
   predictionMeas.template get<mtPredictionMeas::_gyr>() = Eigen::Vector3d(imu_msg->angular_velocity.x,imu_msg->angular_velocity.y,imu_msg->angular_velocity.z);
 
+//  if(verbose_) std::cout << std::setprecision(15) << "== New IMU meas, timestamp: " << imu_msg->header.stamp.toSec() << std::endl;
+
   // Check if initialization can be performed (requires the availability of tag measurements)
   if(!isInitialized_ && visionDataAvailable_) {
       initializeFilterWithIMUMeas(predictionMeas,imu_msg->header.stamp.toSec());
@@ -300,7 +302,7 @@ void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::Const
   updateMeas.template get<mtUpdateMeas::_aux>().resize(vision_msg->tags.size());
 
   // Read out the tags from the current TagArray measurement
-  if(verbose_) std::cout << "== New Tag Meas ==" << std::endl;
+  if(verbose_) std::cout << "== New vision meas, timestamp: " << vision_msg->header.stamp.toSec() << std::endl;
   for (size_t i=0; i<vision_msg->tags.size(); i++){
 
     int tagId = vision_msg->tags[i].id;
@@ -378,6 +380,7 @@ void FilterInterface_RCARS::updateAndPublish(void){
       if(verbose_) std::cout << "Calibration:" << std::endl;
       if(verbose_) std::cout << "  MrMV: " << safe_.state_.template get<mtState::_vep>().transpose() << std::endl;
       if(verbose_) std::cout << "  qVM: " << safe_.state_.template get<mtState::_vea>() << std::endl;
+      if(verbose_) std::cout << "  Time since last valid measurement: " << safe_.state_.template get<mtState::_aux>().timeSinceLastValidUpdate_ << std::endl;
 
       // Publish the corresponding tf
       static tf::TransformBroadcaster tb_ekf_safe;

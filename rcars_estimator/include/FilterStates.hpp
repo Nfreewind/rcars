@@ -61,6 +61,7 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
       hybridIds_[i] = -1;
     }
     measIndIterator_ = 0;
+    timeSinceLastValidUpdate_ = 0;
   };
   ~StateAuxiliary(){};
   /*!
@@ -89,6 +90,10 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
    * Internal iterator for measurement indices
    */
   int measIndIterator_;
+  /*!
+   * Time since last valid update
+   */
+  double timeSinceLastValidUpdate_;
   /*!
    * Searches the dynamic tag ID vector for a specific tag ID and returns the vector index
    * Returns -1 if not found.

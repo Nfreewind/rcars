@@ -122,6 +122,7 @@ class ImuPrediction: public LWF::Prediction<FILTERSTATE>{
     }
 
     output.template get<mtState::_aux>().wMeasCov_ = prenoiP_.template block<3,3>(mtNoise::template getId<mtNoise::_att>(),mtNoise::template getId<mtNoise::_att>())/dt;
+    output.template get<mtState::_aux>().timeSinceLastValidUpdate_ = state.template get<mtState::_aux>().timeSinceLastValidUpdate_+dt;
     output.fix();
   }
   void noMeasCase(mtFilterState& filterState, mtMeas& meas, double dt){
