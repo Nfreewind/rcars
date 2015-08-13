@@ -35,6 +35,7 @@
 #include <tf/transform_broadcaster.h>
 #include <tf_conversions/tf_eigen.h>
 
+#include <config.hpp>
 #include <FilterRCARS.hpp>
 #include <std_srvs/Empty.h>
 #include <sensor_msgs/Imu.h>
@@ -46,8 +47,7 @@
 #include <rcars_detector/TagArray.h>
 #include <rcars_detector/TagPoses.h>
 
-
-class FilterInterface_RCARS: public rcars::FilterRCARS<3,4>{ // TODO
+class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>{
  public:
   /*!
    * Typedefs and using-declarations
