@@ -53,7 +53,7 @@ int main(int argc, char *argv[]){
 
   if (saveWorkspace)
   {
-	  std::cout << "Saving WORKSPACE!!!" << std::endl;
+	  ROS_INFO("Saving Workspace.");
 	  filterInterface.saveWorkspace();
   }
 

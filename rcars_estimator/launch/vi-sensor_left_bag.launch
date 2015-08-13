@@ -10,14 +10,12 @@
   
   <node name="estimator" ns="rcars" pkg="rcars_estimator" type="rcars_estimator_node" output="screen">
     <rosparam command="delete" ns="workspace" />
-    <rosparam command="load" file="$(find rcars_estimator)/config/workspaces/test.yaml" ns="workspace" />
+    <!-- <rosparam command="load" file="$(find rcars_estimator)/config/workspaces/example.yaml" ns="workspace" /> -->
     <param name="filterParameterFile" value="$(find rcars_estimator)/config/parametersRCARS.info"/>
     <param name="overwriteWorkspace" value="false" />
     <param name="calibrationViewCountThreshold" value="10" />
     <param name="workspaceFilename" value="$(find rcars_estimator)/config/workspaces/test.yaml" />
     <param name="autosaveWorkspace" value="false" />
   </node>
-  
-  <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find rcars_estimator)/config/debug.rviz" />
-  
+
 </launch>
