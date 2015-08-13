@@ -126,19 +126,19 @@ void FilterInterface_RCARS::loadWorkspace()
 		std::string tagType;
 		if (
 			nh_.getParam(parameterBaseName+"/type", tagType) &&
-			nh_.getParam(parameterBaseName+"/position/x", IrIT_[tagId](0)) &&
-			nh_.getParam(parameterBaseName+"/position/y", IrIT_[tagId](1)) &&
-			nh_.getParam(parameterBaseName+"/position/z", IrIT_[tagId](2))
+			nh_.getParam(parameterBaseName+"/pose/position/x", IrIT_[tagId](0)) &&
+			nh_.getParam(parameterBaseName+"/pose/position/y", IrIT_[tagId](1)) &&
+			nh_.getParam(parameterBaseName+"/pose/position/z", IrIT_[tagId](2))
 		)
 		{
 			if (tagType == "static")
 			{
 				tagType_[tagId] = rcars::STATIC_TAG;
 				Eigen::Quaterniond rot;
-				if (nh_.getParam(parameterBaseName+"/orientation/w", rot.w()) &&
-					nh_.getParam(parameterBaseName+"/orientation/x", rot.x()) &&
-					nh_.getParam(parameterBaseName+"/orientation/y", rot.y()) &&
-					nh_.getParam(parameterBaseName+"/orientation/z", rot.z())
+				if (nh_.getParam(parameterBaseName+"/pose/orientation/w", rot.w()) &&
+					nh_.getParam(parameterBaseName+"/pose/orientation/x", rot.x()) &&
+					nh_.getParam(parameterBaseName+"/pose/orientation/y", rot.y()) &&
+					nh_.getParam(parameterBaseName+"/pose/orientation/z", rot.z())
 				)
 				{
 					qTI_[tagId] = rot::RotationQuaternionPD(rot);
@@ -165,7 +165,7 @@ void FilterInterface_RCARS::loadWorkspace()
 void FilterInterface_RCARS::saveWorkspace()
 {
   std::string filename;
-  if (!nh_.getParam("workspace/filename", filename))
+  if (!nh_.getParam("workspaceFilename", filename))
   {
 	filename = ros::package::getPath("rcars_estimator") + "/config/workspaces/default.yaml";
     ROS_WARN("Parameter workspace filename not set. Will save workspace to default location %s.", filename.c_str());
@@ -201,11 +201,6 @@ void FilterInterface_RCARS::saveWorkspace()
 		}
 	}
 
-	ROS_INFO("%lu dynamic calibrated tags.", calibratedTags.size());
-
-	nh_.deleteParam("workspace/calibratedTags");
-	nh_.setParam("workspace/calibratedTags", calibratedTags);
-
 	for (size_t i=0; i<calibratedTags.size(); i++)
 	{
 		int tagId = calibratedTags[i];
@@ -215,15 +210,34 @@ void FilterInterface_RCARS::saveWorkspace()
 
 		nh_.deleteParam(parameterBaseName);
 
-		nh_.setParam(parameterBaseName+"/type", rcars::STATIC_TAG);
-		nh_.setParam(parameterBaseName+"/position/x", safe_.state_.template get<mtState::_dyp>(tagIndex)(0));
-		nh_.setParam(parameterBaseName+"/position/y", safe_.state_.template get<mtState::_dyp>(tagIndex)(1));
-		nh_.setParam(parameterBaseName+"/position/z", safe_.state_.template get<mtState::_dyp>(tagIndex)(2));
-		nh_.setParam(parameterBaseName+"/orientation/w", safe_.state_.template get<mtState::_dya>(tagIndex).w());
-		nh_.setParam(parameterBaseName+"/orientation/x", safe_.state_.template get<mtState::_dya>(tagIndex).x());
-		nh_.setParam(parameterBaseName+"/orientation/y", safe_.state_.template get<mtState::_dya>(tagIndex).y());
-		nh_.setParam(parameterBaseName+"/orientation/z", safe_.state_.template get<mtState::_dya>(tagIndex).z());
+		nh_.setParam(parameterBaseName+"/type", "static");
+		nh_.setParam(parameterBaseName+"/pose/position/x", safe_.state_.template get<mtState::_dyp>(tagIndex)(0));
+		nh_.setParam(parameterBaseName+"/pose/position/y", safe_.state_.template get<mtState::_dyp>(tagIndex)(1));
+		nh_.setParam(parameterBaseName+"/pose/position/z", safe_.state_.template get<mtState::_dyp>(tagIndex)(2));
+		nh_.setParam(parameterBaseName+"/pose/orientation/w", safe_.state_.template get<mtState::_dya>(tagIndex).w());
+		nh_.setParam(parameterBaseName+"/pose/orientation/x", safe_.state_.template get<mtState::_dya>(tagIndex).x());
+		nh_.setParam(parameterBaseName+"/pose/orientation/y", safe_.state_.template get<mtState::_dya>(tagIndex).y());
+		nh_.setParam(parameterBaseName+"/pose/orientation/z", safe_.state_.template get<mtState::_dya>(tagIndex).z());
 	}
+
+	ROS_INFO("%lu newly calibrated tags.", calibratedTags.size());
+
+	// take over old tags
+	if (!overwriteWorkspace_)
+	{
+		std::vector<int> calibratedTagsPreviously;
+		nh_.getParam("workspace/calibratedTags", calibratedTagsPreviously);
+		for (size_t i=0; i<calibratedTagsPreviously.size(); i++)
+		{
+			if (std::find(calibratedTags.begin(), calibratedTags.end(), calibratedTagsPreviously[i]) == calibratedTags.end() )
+			{
+				calibratedTags.push_back(calibratedTagsPreviously[i]);
+			}
+		}
+	}
+
+	nh_.setParam("workspace/calibratedTags", calibratedTags);
+	ROS_INFO("%lu total calibrated tags.", calibratedTags.size());
 
 	std::string systemCall = "rosparam dump " + filename + " " + ros::this_node::getNamespace() + "/estimator/workspace";
 	if (system(systemCall.c_str()) == -1)

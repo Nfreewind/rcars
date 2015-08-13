@@ -21,10 +21,13 @@ int main(int argc, char *argv[]){
 
   // Save workspace
   bool saveWorkspace = false;
-  n.param<bool>("saveWorkspace", saveWorkspace, saveWorkspace);
+  n.param<bool>("autosaveWorkspace", saveWorkspace, saveWorkspace);
 
   if (saveWorkspace)
+  {
+	  std::cout << "Saving WORKSPACE!!!" << std::endl;
 	  filterInterface.saveWorkspace();
+  }
 
   return 0;
 }
