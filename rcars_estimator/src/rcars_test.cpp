@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2014, Autonomous Systems Lab
+* Copyright (c) 2014, Michael Neunert & Michael Blösch
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -9,7 +9,7 @@
 * * Redistributions in binary form must reproduce the above copyright
 * notice, this list of conditions and the following disclaimer in the
 * documentation and/or other materials provided with the distribution.
-* * Neither the name of the Autonomous Systems Lab, ETH Zurich nor the
+* * Neither the name of the ETH Zurich nor the
 * names of its contributors may be used to endorse or promote products
 * derived from this software without specific prior written permission.
 *
