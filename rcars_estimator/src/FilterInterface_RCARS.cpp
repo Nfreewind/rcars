@@ -32,6 +32,7 @@
 FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) :
 	nh_(nh)
 {
+  ros::NodeHandle nhNonPrivate;
 
   // Initialize remaining filter variables
   visionDataAvailable_ = false;
@@ -62,7 +63,7 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) :
 
   // Setup subscribers and publishers
   subImu_ = nh_.subscribe("/imu0", 1000, &FilterInterface_RCARS::imuCallback,this);
-  subTags_ = nh_.subscribe("/rcars_detected_tags", 10, &FilterInterface_RCARS::visionCallback,this);
+  subTags_ = nhNonPrivate.subscribe("detector/tags", 10, &FilterInterface_RCARS::visionCallback,this);
   subCameraInfo_ = nh_.subscribe("/cam0/camera_info", 1, &FilterInterface_RCARS::cameraInfoCallback,this);
   pubPose_ = nh_.advertise<geometry_msgs::PoseStamped>("filterPose", 1000);
   pubTagPoses_ = nh_.advertise<rcars_detector::TagPoses>("tagPoses", 1000);
@@ -71,8 +72,8 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) :
   pubPoseSafe_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterPoseSafe", 1000);
   pubTwistSafe_ = nh_.advertise<geometry_msgs::TwistWithCovarianceStamped>("filterTwistSafe", 1000);
 
-  resetService_ = nh.advertiseService("reset", &FilterInterface_RCARS::resetServiceCallback, this);
-  saveWorkspaceService_ = nh.advertiseService("saveWorkspace", &FilterInterface_RCARS::saveWorkspaceCallback, this);
+  resetService_ = nh_.advertiseService("reset", &FilterInterface_RCARS::resetServiceCallback, this);
+  saveWorkspaceService_ = nh_.advertiseService("saveWorkspace", &FilterInterface_RCARS::saveWorkspaceCallback, this);
 }
 
 

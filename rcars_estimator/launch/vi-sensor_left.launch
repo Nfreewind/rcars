@@ -20,6 +20,4 @@
     <param name="autosaveWorkspace" value="true" />
   </node>
   
-  <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find rcars_estimator)/config/debug.rviz" />
-  
 </launch>

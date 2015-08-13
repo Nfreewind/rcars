@@ -52,9 +52,6 @@ ros::Subscriber cameraInfoSubscriber;
 // subscribes to the input image
 image_transport::Subscriber imageSubscriber;
 
-// publishes debug images with marked detections
-image_transport::Publisher debugPublisher;
-
 // pointer to gray-scale image
 cv_bridge::CvImagePtr cv_ptr_gray;
 
@@ -62,7 +59,6 @@ cv_bridge::CvImagePtr cv_ptr_gray;
 AprilTags::TagDetector* tagDetector;
 
 // ROS parameters
-bool publishDebugImage = false;
 std::string tagFamily = "";
 double tagSize = 0.161;
 
@@ -146,72 +142,6 @@ void fillRosMessage(const vector<AprilTags::TagDetection>& detections, rcars_det
 	}
 }
 
-/** \brief Visulaizes the detections by marking corners and printing the tag id in the image
- * \param detections Detection information containing information such as tagIDs, corners of detected tags
- * \param image Reference to output image to draw on
- * \param Header information from the tag to copy the time stamp from
- * */
-void visualizeDetections(const vector<AprilTags::TagDetection>& detections, cv::Mat& image, const std_msgs::Header& header)
-{
-	// create a new image pointer
-	cv_bridge::CvImagePtr cvImage(new cv_bridge::CvImage);
-
-	// set gray-scale and time
-	cvImage->encoding = "rgb8";
-	cvImage->header = header;
-
-	// get reference to OpenCV implementation
-	cv::Mat& debugImage = cvImage->image;
-
-	// convert color
-	cvtColor(image, debugImage, CV_GRAY2RGB);
-
-	// iterate over detections
-	for(size_t i=0; i<detections.size(); ++i)
-	{
-		// shortcut
-		const AprilTags::TagDetection &dd = detections[i];
-
-		// calculate distance between corners
-		int dx = dd.p[0][0]-dd.p[2][0];
-		int dy = dd.p[0][1]-dd.p[2][1];
-
-		// set the disparity according to diagonal
-		int disparity = sqrt(dx*dx + dy*dy);
-
-		// set corner circle size, thickness and tag id font size depending on disparity
-		int circleSize = disparity/15;
-		int circleThickness = sqrt(disparity/30);
-		double fontSize = disparity/100.0;
-
-		// threshholding
-		if (circleSize < 5) { circleSize = 5; }
-		if (circleThickness < 2) { circleThickness = 2; }
-		if (fontSize < 0.5) { fontSize = 0.5; }
-		if (fontSize > 4.0) { fontSize = 4.0; }
-
-		// Draw circles at corners of detected tags on the video stream
-		cv::circle(debugImage, cv::Point(dd.p[0][0], dd.p[0][1]), circleSize, CV_RGB(255,0,0), circleThickness);
-		cv::circle(debugImage, cv::Point(dd.p[1][0], dd.p[1][1]), circleSize, CV_RGB(255,0,0), circleThickness);
-		cv::circle(debugImage, cv::Point(dd.p[2][0], dd.p[2][1]), circleSize, CV_RGB(255,0,0), circleThickness);
-		cv::circle(debugImage, cv::Point(dd.p[3][0], dd.p[3][1]), circleSize, CV_RGB(255,0,0), circleThickness);
-
-		// Draw tag id
-		cv::putText(
-				debugImage,
-				toString(dd.id),
-				cv::Point(0.5*(dd.p[0][0]+dd.p[2][0]), 0.5*(dd.p[0][1]+dd.p[2][1])),
-				cv::FONT_HERSHEY_SIMPLEX,
-				fontSize,
-				CV_RGB(0,255,0),
-				2
-		);
-	}
-
-    // Publish Image
-	debugPublisher.publish(cvImage->toImageMsg());
-}
-
 /** \brief Callback function to handle incoming camera information
  * \param cameraInfo CameraInfo (calibration etc.) received by subscriber
  * */
@@ -275,13 +205,6 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imageTransport)
 	// fill the ROS message with detection infomormation
 	fillRosMessage(detections, tags);
 
-	// if visualization is enabled
-	if (publishDebugImage)
-	{
-		// visualize the detections
-		visualizeDetections(detections, image, imageTransport->header);
-	}
-
 	// Copy header
 	tags.header = imageTransport->header;
 
@@ -306,8 +229,9 @@ int main(int argc, char **argv)
 {
 	ROS_INFO("Launching AprilTag Detector.");
 
-	ros::init(argc, argv, "rcars_tag_detector");
+	ros::init(argc, argv, "detector");
 	ros::NodeHandle nh;
+	ros::NodeHandle nhPrivate("~");
 	image_transport::ImageTransport it(nh);
 
 	// multi threading
@@ -326,10 +250,7 @@ int main(int argc, char **argv)
 	cameraInfoSubscriber = nh.subscribe("/cam0/camera_info", 5, cameraInfoCallback);
 
 	// publisher for detected tags
-	tagPublisher = nh.advertise<rcars_detector::TagArray>("/rcars_detected_tags", 1);
-
-	// publisher for image with marked corners (for debugging)
-	debugPublisher = it.advertise("/rcars_detector_image", 1);
+	tagPublisher = nhPrivate.advertise<rcars_detector::TagArray>("tags", 1);
 
 	// select tag family
 	int tagFamilyInt = 0;
@@ -342,10 +263,6 @@ int main(int argc, char **argv)
 	// setup detector
 	tagDetector = new AprilTags::TagDetector(tagCodes);
 	ros::param::param<double>("~tagSize", tagSize, tagSize);
-
-	// setup debug
-	ros::param::param<bool>("~publishDebugImage", publishDebugImage, false);
-	ROS_INFO("Debug print is (enabled/disabled): %i", publishDebugImage);
 
 	if (nThreads < 0)
 	{
