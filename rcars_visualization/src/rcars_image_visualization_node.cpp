@@ -2,7 +2,8 @@
 #include <ros/console.h>
 
 #include <message_filters/subscriber.h>
-#include <message_filters/time_synchronizer.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
@@ -192,12 +193,15 @@ int main(int argc, char **argv)
 
 	message_filters::Subscriber<sensor_msgs::Image> imageSub(nh, "/cam0/image_rect", 2);
 	message_filters::Subscriber<rcars_detector::TagArray> detectorSub(nh, "detector/tags", 2);
-	message_filters::Subscriber<rcars_detector::TagArray> estimatorSub(nh, "estimator/tags", 2);
+	message_filters::Subscriber<rcars_detector::TagArray> estimatorSub(nh, "estimator/tagsCameraFrame", 2);
 
-	message_filters::TimeSynchronizer<sensor_msgs::Image, rcars_detector::TagArray> syncDetector(imageSub, detectorSub, 10);
+	typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, rcars_detector::TagArray> DetectorSyncPolicy;
+	typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, rcars_detector::TagArray, rcars_detector::TagArray> FullSyncPolicy;
+
+	message_filters::Synchronizer<DetectorSyncPolicy> syncDetector(DetectorSyncPolicy(10), imageSub, detectorSub);
 	syncDetector.registerCallback(boost::bind(&callbackDetector, _1, _2));
 
-	message_filters::TimeSynchronizer<sensor_msgs::Image, rcars_detector::TagArray, rcars_detector::TagArray> syncFull(imageSub, detectorSub, estimatorSub, 10);
+	message_filters::Synchronizer<FullSyncPolicy> syncFull(FullSyncPolicy(10), imageSub, detectorSub, estimatorSub);
 	syncFull.registerCallback(boost::bind(&callbackFull, _1, _2, _3));
 
 	ros::spin();

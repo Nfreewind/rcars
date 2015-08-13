@@ -198,11 +198,10 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
   ros::Subscriber subTags_;
   ros::Subscriber subCameraInfo_;
   ros::Publisher pubPose_;
-  ros::Publisher pubTagPoses_;
+  ros::Publisher pubTagArrayCameraFrame_;
+  ros::Publisher pubTagArrayInertialFrame_;
   ros::Publisher pubPoseSafe_;
   ros::Publisher pubTwistSafe_;
-  ros::Publisher pubTagPosesBody_;
-  ros::Publisher pubTagVis_;
 
   ros::ServiceServer resetService_;
   ros::ServiceServer saveWorkspaceService_;

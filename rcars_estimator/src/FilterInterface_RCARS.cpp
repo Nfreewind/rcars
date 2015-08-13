@@ -66,9 +66,8 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) :
   subTags_ = nhNonPrivate.subscribe("detector/tags", 10, &FilterInterface_RCARS::visionCallback,this);
   subCameraInfo_ = nh_.subscribe("/cam0/camera_info", 1, &FilterInterface_RCARS::cameraInfoCallback,this);
   pubPose_ = nh_.advertise<geometry_msgs::PoseStamped>("filterPose", 1000);
-  pubTagPoses_ = nh_.advertise<rcars_detector::TagPoses>("tagPoses", 1000);
-  pubTagPosesBody_ = nh_.advertise<rcars_detector::TagPoses>("tagPosesBody",1000);
-  pubTagVis_ = nh_.advertise<geometry_msgs::PoseArray>("tagPosesVis",1000);
+  pubTagArrayCameraFrame_ = nh_.advertise<rcars_detector::TagArray>("tagsCameraFrame", 1000);
+  pubTagArrayInertialFrame_ = nh_.advertise<rcars_detector::TagPoses>("tagsInertialFrame",1000);
   pubPoseSafe_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterPoseSafe", 1000);
   pubTwistSafe_ = nh_.advertise<geometry_msgs::TwistWithCovarianceStamped>("filterTwistSafe", 1000);
 
@@ -364,7 +363,6 @@ void FilterInterface_RCARS::cameraInfoCallback(const sensor_msgs::CameraInfo::Co
 }
 
 void FilterInterface_RCARS::updateAndPublish(void){
-  // TODO(neunertm): clean up
   // Only update if the filter is initialized
   if (isInitialized_) {
     // Store the current time of the filter
@@ -455,7 +453,6 @@ void FilterInterface_RCARS::updateAndPublish(void){
 	  }
 	  msgTwist.header.stamp = ros::Time(safe_.t_);
 	  pubTwistSafe_.publish(msgTwist);
-
     }
   }
 }
@@ -463,59 +460,57 @@ void FilterInterface_RCARS::updateAndPublish(void){
 void FilterInterface_RCARS::publishTagPoses(void)
 {
 	// TODO: add static tags here
-	rcars_detector::TagPoses tagPosesMsg;
-	tagPosesMsg.header.stamp = ros::Time(safe_.t_);
-	tagPosesMsg.header.frame_id = "world";
-	tagPosesMsg.tagIds.resize(nTags_);
-	tagPosesMsg.poses.resize(nTags_);
+	rcars_detector::TagArray tagArrayCameraFrameMsg;
+	tagArrayCameraFrameMsg.header.stamp = ros::Time(safe_.t_);
+	tagArrayCameraFrameMsg.header.frame_id = "world";
 
-	rcars_detector::TagPoses tagPosesBodyMsg;
-	tagPosesBodyMsg.header.stamp = ros::Time(safe_.t_);
-	tagPosesBodyMsg.header.frame_id = "world";
-	tagPosesBodyMsg.tagIds.resize(nTags_);
-	tagPosesBodyMsg.poses.resize(nTags_);
+	rcars_detector::TagArray tagArrayInertialFrameMsg;
+	tagArrayInertialFrameMsg.header.stamp = ros::Time(safe_.t_);
+	tagArrayInertialFrameMsg.header.frame_id = "world";
 
+	size_t index = 0;
+	for (size_t i=0; i< mtState::nDynamicTags_; i++)
+	{
+		if (safe_.state_.template get<mtState::_aux>().dynamicIds_[i] == -1)
+		{
+			continue;
+		}
 
-	Eigen::Vector3d IrIM;
-	rot::RotationQuaternionPD qIM;
-	Eigen::Vector3d MvM;
-	Eigen::Vector3d MwM;
-	getOutput(safe_,IrIM,qIM,MvM,MwM);
+		tagArrayCameraFrameMsg.tags.resize(tagArrayCameraFrameMsg.tags.size()+1);
+		tagArrayInertialFrameMsg.tags.resize(tagArrayInertialFrameMsg.tags.size()+1);
 
-//	for(unsigned int i=0;i<nTags_;i++){
-//		tagPosesMsg.tagIds[i] = safe_.tagId_(i);
-//		tagPosesBodyMsg.tagIds[i] = safe_.tagId_(i);
-//
-//	    tagPosesMsg.poses[i].position.x = safe_.tagPos(i)(0);
-//	    tagPosesMsg.poses[i].position.y = safe_.tagPos(i)(1);
-//	    tagPosesMsg.poses[i].position.z = safe_.tagPos(i)(2);
-//	    tagPosesMsg.poses[i].orientation.x = safe_.tagAtt(i).x();
-//	    tagPosesMsg.poses[i].orientation.y = safe_.tagAtt(i).y();
-//	    tagPosesMsg.poses[i].orientation.z = safe_.tagAtt(i).z();
-//	    tagPosesMsg.poses[i].orientation.w = safe_.tagAtt(i).w();
-//
-//	    Eigen::Vector3d IrMT = safe_.tagPos(i) - IrIM;
-//	    Eigen::Vector3d MrMT = qIM.inverted().rotate(IrMT);
-//
-//	    tagPosesBodyMsg.poses[i].position.x = MrMT(0);
-//	    tagPosesBodyMsg.poses[i].position.y = MrMT(1);
-//	    tagPosesBodyMsg.poses[i].position.z = MrMT(2);
-//
-//	    rot::RotationQuaternionPD qMT = qIM.inverted() * safe_.tagAtt(i).inverted();
-//
-//	    tagPosesBodyMsg.poses[i].orientation.x = qMT.x();
-//	    tagPosesBodyMsg.poses[i].orientation.y = qMT.y();
-//	    tagPosesBodyMsg.poses[i].orientation.z = qMT.z();
-//	    tagPosesBodyMsg.poses[i].orientation.w = qMT.w();
-//	}
+		tagArrayCameraFrameMsg.tags[index].id = safe_.state_.template get<mtState::_aux>().dynamicIds_[i];
+		tagArrayInertialFrameMsg.tags[index].id = safe_.state_.template get<mtState::_aux>().dynamicIds_[i];
 
-	pubTagPoses_.publish(tagPosesMsg);
-	pubTagPosesBody_.publish(tagPosesBodyMsg);
+	    tagArrayCameraFrameMsg.tags[index].pose.position.x = get_VrVT_dyn_safe(i)(0);
+	    tagArrayCameraFrameMsg.tags[index].pose.position.y = get_VrVT_dyn_safe(i)(1);
+	    tagArrayCameraFrameMsg.tags[index].pose.position.z = get_VrVT_dyn_safe(i)(2);
+	    tagArrayCameraFrameMsg.tags[index].pose.orientation.x = get_qTV_dyn_safe(i).x();
+	    tagArrayCameraFrameMsg.tags[index].pose.orientation.y = get_qTV_dyn_safe(i).y();
+	    tagArrayCameraFrameMsg.tags[index].pose.orientation.z = get_qTV_dyn_safe(i).z();
+	    tagArrayCameraFrameMsg.tags[index].pose.orientation.w = get_qTV_dyn_safe(i).w();
 
-	// We publish again as a pose array just to make it easier to visualize in RVIZ
-	geometry_msgs::PoseArray poseArrayMsg;
-	poseArrayMsg.poses = tagPosesMsg.poses;
-	poseArrayMsg.header = tagPosesMsg.header;
-	pubTagVis_.publish(poseArrayMsg);
+	    tagArrayInertialFrameMsg.tags[index].pose.position.x = get_IrIT_dyn_safe(i)(0);
+	    tagArrayInertialFrameMsg.tags[index].pose.position.y = get_IrIT_dyn_safe(i)(1);
+	    tagArrayInertialFrameMsg.tags[index].pose.position.z = get_IrIT_dyn_safe(i)(2);
+	    tagArrayInertialFrameMsg.tags[index].pose.orientation.x = get_qTI_dyn_safe(i).x();
+	    tagArrayInertialFrameMsg.tags[index].pose.orientation.y = get_qTI_dyn_safe(i).y();
+	    tagArrayInertialFrameMsg.tags[index].pose.orientation.z = get_qTI_dyn_safe(i).z();
+	    tagArrayInertialFrameMsg.tags[index].pose.orientation.w = get_qTI_dyn_safe(i).w();
+
+	    for (size_t j=0; j<4; j++)
+	    {
+	    	tagArrayCameraFrameMsg.tags[index].corners[j].x = 0.0;
+	    	tagArrayCameraFrameMsg.tags[index].corners[j].y = 0.0;
+
+	    	tagArrayInertialFrameMsg.tags[index].corners[j].x = 0.0;
+	    	tagArrayInertialFrameMsg.tags[index].corners[j].y = 0.0;
+	    }
+
+	    index++;
+	}
+
+	pubTagArrayCameraFrame_.publish(tagArrayCameraFrameMsg);
+	pubTagArrayInertialFrame_.publish(tagArrayInertialFrameMsg);
 }
 
