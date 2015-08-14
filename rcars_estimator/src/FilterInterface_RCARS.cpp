@@ -35,13 +35,14 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) :
   ros::NodeHandle nhNonPrivate;
 
   // Initialize remaining filter variables
-  visionDataAvailable_ = false;
+  properVisionDataAvailable_ = false;
   isInitialized_ = false;
   camInfoAvailable_ = false;
   referenceTagId_ = -1;
 
   nh_.param<int>("calibrationViewCountThreshold", calibrationViewCountThreshold_, 10);
   nh_.param<bool>("overwriteWorkspace", overwriteWorkspace_, false);
+  nh_.param<bool>("initializeWithStaticTagOnly", initializeWithStaticTagOnly_, false);
 
   std::string filterParameterFile;
   if(nh_.getParam("filterParameterFile", filterParameterFile))
@@ -252,7 +253,7 @@ bool FilterInterface_RCARS::resetServiceCallback(std_srvs::Empty::Request& reque
 {
 	reset();
 	isInitialized_ = false;
-	visionDataAvailable_ = false;
+	properVisionDataAvailable_ = false;
 	return true;
 }
 
@@ -279,7 +280,7 @@ void FilterInterface_RCARS::imuCallback(const sensor_msgs::Imu::ConstPtr& imu_ms
 //  if(verbose_) std::cout << std::setprecision(15) << "== New IMU meas, timestamp: " << imu_msg->header.stamp.toSec() << std::endl;
 
   // Check if initialization can be performed (requires the availability of tag measurements)
-  if(!isInitialized_ && visionDataAvailable_) {
+  if(!isInitialized_ && properVisionDataAvailable_) {
       initializeFilterWithIMUMeas(predictionMeas,imu_msg->header.stamp.toSec());
   } else if(isInitialized_){ // If the filter is initialized add the IMU measurement to the filter and update
     addPredictionMeas(predictionMeas,imu_msg->header.stamp.toSec());
@@ -289,13 +290,25 @@ void FilterInterface_RCARS::imuCallback(const sensor_msgs::Imu::ConstPtr& imu_ms
 
 void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::ConstPtr& vision_msg) {
 
-  visionDataAvailable_ = true;
-
   // Return if the camera info is not yet available
   if(!camInfoAvailable_) { return; }
 
   // Do not add measurements if not initialized
-  if (!isInitialized_) { return; }
+  if (!isInitialized_) {
+    if(initializeWithStaticTagOnly_){
+      for (size_t i=0; i<vision_msg->tags.size(); i++){
+        int tagId = vision_msg->tags[i].id;
+        auto it = tagType_.find(tagId);
+        if (it != tagType_.end() && it->second == rcars::STATIC_TAG){
+          properVisionDataAvailable_ = true;
+          break;
+        }
+      }
+    } else if(vision_msg->tags.size() > 0){
+      properVisionDataAvailable_ = true;
+    }
+    return;
+  }
 
   // Create and fill the update measurement
   mtUpdateMeas updateMeas;
@@ -316,7 +329,7 @@ void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::Const
     updateMeas.template get<mtUpdateMeas::_aux>().tagTypes_[i] = rcars::DYNAMIC_TAG;
 
     // check if tag is of special type
-    auto it = tagType_.find(updateMeas.template get<mtUpdateMeas::_aux>().tagIds_[i]);
+    auto it = tagType_.find(tagId);
     if (it != tagType_.end())
     {
     	updateMeas.template get<mtUpdateMeas::_aux>().tagTypes_[i] = it->second;
