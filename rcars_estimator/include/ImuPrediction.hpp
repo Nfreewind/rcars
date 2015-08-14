@@ -39,6 +39,7 @@ namespace rcars {
 template<typename FILTERSTATE>
 class ImuPrediction: public LWF::Prediction<FILTERSTATE>{
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef LWF::Prediction<FILTERSTATE> Base;
   using Base::eval;
   using Base::prenoiP_;

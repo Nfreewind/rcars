@@ -513,11 +513,11 @@ void FilterInterface_RCARS::publishTagPoses(void)
 
 	    for (size_t j=0; j<4; j++)
 	    {
-	    	tagArrayCameraFrameMsg.tags[index].corners[j].x = 0.0;
-	    	tagArrayCameraFrameMsg.tags[index].corners[j].y = 0.0;
+	    	tagArrayCameraFrameMsg.tags[index].corners[j].x = safe_.state_.template get<mtState::_aux>().corners_[i](j*2+0);
+	    	tagArrayCameraFrameMsg.tags[index].corners[j].y = safe_.state_.template get<mtState::_aux>().corners_[i](j*2+1);
 
-	    	tagArrayInertialFrameMsg.tags[index].corners[j].x = 0.0;
-	    	tagArrayInertialFrameMsg.tags[index].corners[j].y = 0.0;
+	    	tagArrayInertialFrameMsg.tags[index].corners[j].x = safe_.state_.template get<mtState::_aux>().corners_[i](j*2+0);
+	    	tagArrayInertialFrameMsg.tags[index].corners[j].y = safe_.state_.template get<mtState::_aux>().corners_[i](j*2+1);
 	    }
 
 	    index++;

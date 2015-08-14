@@ -151,6 +151,7 @@ template<typename FILTERSTATE>
 class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>,FILTERSTATE,TagUpdateMeas<typename FILTERSTATE::mtState>,TagUpdateNoise<typename FILTERSTATE::mtState>,
                                     TagOutlierDetection<typename FILTERSTATE::mtState>,false>{
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef LWF::Update<TagInnovation<typename FILTERSTATE::mtState>,FILTERSTATE,TagUpdateMeas<typename FILTERSTATE::mtState>,TagUpdateNoise<typename FILTERSTATE::mtState>,
                       TagOutlierDetection<typename FILTERSTATE::mtState>,false> Base;
   using Base::doubleRegister_;
@@ -252,6 +253,9 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
         p = CameraMatrix_*VrVC;
         double z = p(2);
         p = p/z;
+        if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == DYNAMIC_TAG){
+          state.setCorners(state.template get<mtState::_aux>().getDynamicIndFromTagId(tagId),j,p(0),p(1));
+        }
         y.template get<mtInnovation::_cor>()(j*2+0) = p(0)-meas.template get<mtMeas::_aux>().VrVC_[measInd](j*2+0);
         y.template get<mtInnovation::_cor>()(j*2+1) = p(1)-meas.template get<mtMeas::_aux>().VrVC_[measInd](j*2+1);
         if(verbose_){

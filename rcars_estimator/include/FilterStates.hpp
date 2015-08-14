@@ -47,6 +47,7 @@ enum TagType{
 template<unsigned int nDynamicTags, unsigned int nHybridTags>
 class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHybridTags>>{
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   /*!
    * Constructor
    */
@@ -56,6 +57,7 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
     wMeasCov_.setIdentity();
     for(unsigned int i=0;i<nDynamicTags;i++){
       dynamicIds_[i] = -1;
+      corners_[i].setZero();
     }
     for(unsigned int i=0;i<nHybridTags;i++){
       hybridIds_[i] = -1;
@@ -81,6 +83,10 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
    * Contains -1 if not yet assigned
    */
   int dynamicIds_[nDynamicTags];
+  /*!
+   * Array the estimated corner locations in the image
+   */
+  mutable Eigen::Matrix<double,8,1> corners_[nDynamicTags];
   /*!
    * Array containing ID of hybrid tags
    * Contains -1 if not yet assigned
@@ -210,6 +216,13 @@ class State: public LWF::State<
     this->template getName<_aux>() = "aux";
   }
   ~State(){};
+  /*!
+   * Sets the corner data (mutable)
+   */
+  void setCorners(int i, int j, double& x, double& y) const{
+    this->template get<_aux>().corners_[i](j*2+0) = x;
+    this->template get<_aux>().corners_[i](j*2+1) = y;
+  }
 };
 /*!
  * Prediction measurement class, contains references to subentries:
@@ -273,6 +286,7 @@ class PredictionNoise: public LWF::State<LWF::TH_multiple_elements<LWF::VectorEl
 template<int nDynamicTags, int nHybridTags>
 class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,PredictionMeas,PredictionNoise<State<nDynamicTags,nHybridTags>>,0,true>{
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef LWF::FilterState<State<nDynamicTags,nHybridTags>,PredictionMeas,PredictionNoise<State<nDynamicTags,nHybridTags>>,0,true> Base;
   typedef typename Base::mtState mtState;
   using Base::state_;
