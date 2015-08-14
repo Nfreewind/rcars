@@ -71,6 +71,7 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) :
   pubTagArrayInertialFrame_ = nh_.advertise<rcars_detector::TagArray>("tagsInertialFrame",20);
   pubPoseSafe_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterPoseSafe", 20);
   pubTwistSafe_ = nh_.advertise<geometry_msgs::TwistWithCovarianceStamped>("filterTwistSafe", 20);
+  pubExtrinsics_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterExtrinsics", 20);
 
   resetService_ = nh_.advertiseService("reset", &FilterInterface_RCARS::resetServiceCallback, this);
   saveWorkspaceService_ = nh_.advertiseService("saveWorkspace", &FilterInterface_RCARS::saveWorkspaceCallback, this);
@@ -449,23 +450,44 @@ void FilterInterface_RCARS::updateAndPublish(void){
       msg.header.stamp = ros::Time(safe_.t_);
       pubPoseSafe_.publish(msg);
 
+        // Publish twist
+      geometry_msgs::TwistWithCovarianceStamped msgTwist;
+      msgTwist.twist.twist.linear.x = MvM(0);
+      msgTwist.twist.twist.linear.y = MvM(1);
+      msgTwist.twist.twist.linear.z = MvM(2);
+      msgTwist.twist.twist.angular.x = MwM(0);
+      msgTwist.twist.twist.angular.y = MwM(1);
+      msgTwist.twist.twist.angular.z = MwM(2);
+      unsigned int indexArrayTwist[6] = {6,7,8,9,10,11};
+      for(unsigned int i=0;i<6;i++){
+      for(unsigned int j=0;j<6;j++){
+        msgTwist.twist.covariance[6*i+j] = Cov(indexArrayTwist[i],indexArrayTwist[j]);
+      }
+      }
+      msgTwist.header.stamp = ros::Time(safe_.t_);
+      pubTwistSafe_.publish(msgTwist);
 
-      // Publish twist
-	  geometry_msgs::TwistWithCovarianceStamped msgTwist;
-	  msgTwist.twist.twist.linear.x = MvM(0);
-	  msgTwist.twist.twist.linear.y = MvM(1);
-	  msgTwist.twist.twist.linear.z = MvM(2);
-	  msgTwist.twist.twist.angular.x = MwM(0);
-	  msgTwist.twist.twist.angular.y = MwM(1);
-	  msgTwist.twist.twist.angular.z = MwM(2);
-	  unsigned int indexArrayTwist[6] = {6,7,8,9,10,11};
-	  for(unsigned int i=0;i<6;i++){
-		for(unsigned int j=0;j<6;j++){
-		  msgTwist.twist.covariance[6*i+j] = Cov(indexArrayTwist[i],indexArrayTwist[j]);
-		}
-	  }
-	  msgTwist.header.stamp = ros::Time(safe_.t_);
-	  pubTwistSafe_.publish(msgTwist);
+      // Publish extrinsics
+      geometry_msgs::PoseWithCovarianceStamped msgExtrinsics;
+      const V3D& MrMV = safe_.state_.template get<mtState::_vep>();
+      const QPD& qVM = safe_.state_.template get<mtState::_vea>();
+      msgExtrinsics.pose.pose.position.x = MrMV(0);
+      msgExtrinsics.pose.pose.position.y = MrMV(1);
+      msgExtrinsics.pose.pose.position.z = MrMV(2);
+      msgExtrinsics.pose.pose.orientation.w = qVM.w();
+      msgExtrinsics.pose.pose.orientation.x = qVM.x();
+      msgExtrinsics.pose.pose.orientation.y = qVM.y();
+      msgExtrinsics.pose.pose.orientation.z = qVM.z();
+      const int vepId = mtState::template getId<mtState::_vep>();
+      const int veaId = mtState::template getId<mtState::_vea>();
+      unsigned int indexArrayExt[6] = {vepId, vepId+1, vepId+2, veaId, veaId+1, veaId+2};
+      for(unsigned int i=0;i<6;i++){
+        for(unsigned int j=0;j<6;j++){
+          msgExtrinsics.pose.covariance[6*i+j] = Cov(indexArrayExt[i],indexArrayExt[j]);
+        }
+      }
+      msgExtrinsics.header.stamp = ros::Time(safe_.t_);
+      pubExtrinsics_.publish(msgExtrinsics);
     }
   }
 }
