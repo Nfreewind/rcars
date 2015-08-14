@@ -15,6 +15,7 @@
     <rosparam command="load" file="$(find rcars_estimator)/config/workspaces/example.yaml" ns="workspace" />
     <param name="filterParameterFile" value="$(find rcars_estimator)/config/parametersRCARS.info"/>
     <param name="overwriteWorkspace" value="false" />
+    <param name="initializeWithStaticTagOnly" value="false" />
     <param name="calibrationViewCountThreshold" value="10" />
     <param name="workspaceFilename" value="$(find rcars_estimator)/config/workspaces/test.yaml" />
     <param name="autosaveWorkspace" value="true" />

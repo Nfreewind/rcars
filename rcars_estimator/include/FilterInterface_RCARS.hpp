@@ -122,7 +122,7 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
   /*!
     * Boolean if vision data is available
     */
-  bool visionDataAvailable_;
+  bool properVisionDataAvailable_;
 
   /*!
    * Time of initialization
@@ -188,6 +188,11 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
    * Flag if workspace gets overwritten (or just updated)
    */
   bool overwriteWorkspace_;
+
+  /*!
+   * Should RCARS wait for the measurement of a static tag before initializing
+   */
+  bool initializeWithStaticTagOnly_;
 
   /*!
    * Ros publishers and subscribers
