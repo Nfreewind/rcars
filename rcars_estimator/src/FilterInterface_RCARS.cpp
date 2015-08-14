@@ -126,24 +126,24 @@ void FilterInterface_RCARS::loadWorkspace()
 		int tagId = calibratedTags[i];
 		std::string parameterBaseName = "workspace/tags/tag" + std::to_string(tagId);
 		std::string tagType;
+		V3D IrIT;
+		QPD qTI;
 		if (
 			nh_.getParam(parameterBaseName+"/type", tagType) &&
-			nh_.getParam(parameterBaseName+"/pose/position/x", IrIT_[tagId](0)) &&
-			nh_.getParam(parameterBaseName+"/pose/position/y", IrIT_[tagId](1)) &&
-			nh_.getParam(parameterBaseName+"/pose/position/z", IrIT_[tagId](2))
+			nh_.getParam(parameterBaseName+"/pose/position/x", IrIT(0)) &&
+			nh_.getParam(parameterBaseName+"/pose/position/y", IrIT(1)) &&
+			nh_.getParam(parameterBaseName+"/pose/position/z", IrIT(2))
 		)
 		{
 			if (tagType == "static")
 			{
-				tagType_[tagId] = rcars::STATIC_TAG;
-				Eigen::Quaterniond rot;
-				if (nh_.getParam(parameterBaseName+"/pose/orientation/w", rot.w()) &&
-					nh_.getParam(parameterBaseName+"/pose/orientation/x", rot.x()) &&
-					nh_.getParam(parameterBaseName+"/pose/orientation/y", rot.y()) &&
-					nh_.getParam(parameterBaseName+"/pose/orientation/z", rot.z())
+				if (nh_.getParam(parameterBaseName+"/pose/orientation/w", qTI.toImplementation().w()) &&
+					nh_.getParam(parameterBaseName+"/pose/orientation/x", qTI.toImplementation().x()) &&
+					nh_.getParam(parameterBaseName+"/pose/orientation/y", qTI.toImplementation().y()) &&
+					nh_.getParam(parameterBaseName+"/pose/orientation/z", qTI.toImplementation().z())
 				)
 				{
-					qTI_[tagId] = rot::RotationQuaternionPD(rot);
+				  addStaticTag(tagId,rcars::STATIC_TAG,IrIT,qTI);
 				} else
 				{
 					ROS_FATAL("Could not get orientation for tag %d", tagId);
@@ -163,6 +163,11 @@ void FilterInterface_RCARS::loadWorkspace()
 	}
 }
 
+void FilterInterface_RCARS::addStaticTag(int tagId, rcars::TagType tagType, const V3D& IrIT, const QPD& qTI){
+  tagType_[tagId] = tagType;
+  IrIT_[tagId] = IrIT;
+  qTI_[tagId] = qTI;
+}
 
 void FilterInterface_RCARS::saveWorkspace()
 {
@@ -213,13 +218,17 @@ void FilterInterface_RCARS::saveWorkspace()
 		nh_.deleteParam(parameterBaseName);
 
 		nh_.setParam(parameterBaseName+"/type", "static");
-		nh_.setParam(parameterBaseName+"/pose/position/x", safe_.state_.template get<mtState::_dyp>(tagIndex)(0));
-		nh_.setParam(parameterBaseName+"/pose/position/y", safe_.state_.template get<mtState::_dyp>(tagIndex)(1));
-		nh_.setParam(parameterBaseName+"/pose/position/z", safe_.state_.template get<mtState::_dyp>(tagIndex)(2));
-		nh_.setParam(parameterBaseName+"/pose/orientation/w", safe_.state_.template get<mtState::_dya>(tagIndex).w());
-		nh_.setParam(parameterBaseName+"/pose/orientation/x", safe_.state_.template get<mtState::_dya>(tagIndex).x());
-		nh_.setParam(parameterBaseName+"/pose/orientation/y", safe_.state_.template get<mtState::_dya>(tagIndex).y());
-		nh_.setParam(parameterBaseName+"/pose/orientation/z", safe_.state_.template get<mtState::_dya>(tagIndex).z());
+
+		V3D IrIT = get_IrIT_dyn_safe(tagIndex);
+		QPD qTI = get_qTI_dyn_safe(tagIndex);
+
+		nh_.setParam(parameterBaseName+"/pose/position/x", IrIT(0));
+		nh_.setParam(parameterBaseName+"/pose/position/y", IrIT(1));
+		nh_.setParam(parameterBaseName+"/pose/position/z", IrIT(2));
+		nh_.setParam(parameterBaseName+"/pose/orientation/w", qTI.w());
+		nh_.setParam(parameterBaseName+"/pose/orientation/x", qTI.x());
+		nh_.setParam(parameterBaseName+"/pose/orientation/y", qTI.y());
+		nh_.setParam(parameterBaseName+"/pose/orientation/z", qTI.z());
 	}
 
 	ROS_INFO("%lu newly calibrated tags.", calibratedTags.size());
@@ -278,7 +287,7 @@ void FilterInterface_RCARS::imuCallback(const sensor_msgs::Imu::ConstPtr& imu_ms
   predictionMeas.template get<mtPredictionMeas::_acc>() = Eigen::Vector3d(imu_msg->linear_acceleration.x,imu_msg->linear_acceleration.y,imu_msg->linear_acceleration.z);
   predictionMeas.template get<mtPredictionMeas::_gyr>() = Eigen::Vector3d(imu_msg->angular_velocity.x,imu_msg->angular_velocity.y,imu_msg->angular_velocity.z);
 
-//  if(verbose_) std::cout << std::setprecision(15) << "== New IMU meas, timestamp: " << imu_msg->header.stamp.toSec() << std::endl;
+//  if(verbose_) std::cout safe_<< std::setprecision(15) << "== New IMU meas, timestamp: " << imu_msg->header.stamp.toSec() << std::endl;
 
   // Check if initialization can be performed (requires the availability of tag measurements)
   if(!isInitialized_ && properVisionDataAvailable_) {

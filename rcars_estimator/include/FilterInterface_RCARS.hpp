@@ -118,6 +118,10 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
    */
   void loadWorkspace();
 
+  /*!
+   * Add static tag
+   */
+  void addStaticTag(int tagId, rcars::TagType tagType, const V3D& IrIT, const QPD& qTI);
 
   /*!
     * Boolean if vision data is available
