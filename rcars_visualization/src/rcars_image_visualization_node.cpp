@@ -167,7 +167,7 @@ void callbackFull(const sensor_msgs::ImageConstPtr& image, const rcars_detector:
 	cv::cvtColor(cvPtrGray->image, colorImage, CV_GRAY2RGB);
 
 	// visualize the detections
-	visualizeDetections(detectedTags, colorImage);
+	visualizeDetections(detectedTags, colorImage, true);
 
 	// remove tags that are not seen by the detector
 	rcars_detector::TagArrayPtr estimatedTagsClean(new rcars_detector::TagArray);
@@ -179,10 +179,11 @@ void callbackFull(const sensor_msgs::ImageConstPtr& image, const rcars_detector:
 			if (detectedTags->tags[j].id == estimatedTags->tags[i].id)
 			{
 				estimatedTagsClean->tags.push_back(estimatedTags->tags[i]);
+				break;
 			}
 		}
 	}
-	visualizeDetections(estimatedTagsClean, colorImage, true, true);
+	visualizeDetections(estimatedTagsClean, colorImage, false, true);
 
     // Publish Image
 	estimatorPublisher.publish(cvImage->toImageMsg());
