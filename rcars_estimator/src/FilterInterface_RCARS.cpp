@@ -385,40 +385,12 @@ void FilterInterface_RCARS::updateAndPublish(void){
     updateSafe();
     // Check if something has changed, if yes publish filter state
     if(safe_.t_>t){
-      // get the estimated position and attitude
-      Eigen::Vector3d pos = get_IrIM_safe();
-      rot::RotationQuaternionPD quat = get_qMI_safe();
 
       // Verbose
       if(verbose_) std::cout << "Calibration:" << std::endl;
       if(verbose_) std::cout << "  MrMV: " << safe_.state_.template get<mtState::_vep>().transpose() << std::endl;
       if(verbose_) std::cout << "  qVM: " << safe_.state_.template get<mtState::_vea>() << std::endl;
       if(verbose_) std::cout << "  Time since last valid measurement: " << safe_.state_.template get<mtState::_aux>().timeSinceLastValidUpdate_ << std::endl;
-
-      // Publish the corresponding tf
-      static tf::TransformBroadcaster tb_ekf_safe;
-      tf::StampedTransform tf_transform_ekf;
-      tf_transform_ekf.frame_id_ = "world";
-      tf_transform_ekf.child_frame_id_ = "ekf_safe";
-      tf_transform_ekf.stamp_ = ros::Time(safe_.t_);
-      tf::Transform tf;
-      tf.setOrigin(tf::Vector3(pos(0), pos(1), pos(2)));
-      tf.setRotation(tf::Quaternion(quat.x(), quat.y(), quat.z(), quat.w()));
-      tf_transform_ekf.setData(tf);
-      tb_ekf_safe.sendTransform(tf_transform_ekf);
-
-      // Publish the pose with timestamp
-      geometry_msgs::PoseStamped pose;
-      pose.header.stamp = ros::Time(safe_.t_);
-      pose.header.frame_id = "world";
-      pose.pose.position.x = pos(0);
-      pose.pose.position.y = pos(1);
-      pose.pose.position.z = pos(2);
-      pose.pose.orientation.x = quat.x();
-      pose.pose.orientation.y = quat.y();
-      pose.pose.orientation.z = quat.z();
-      pose.pose.orientation.w = quat.w();
-      pubPose_.publish(pose);
 
       // Publish further tag poses
       publishTagPoses();
@@ -429,6 +401,9 @@ void FilterInterface_RCARS::updateAndPublish(void){
       Eigen::Vector3d MvM;
       Eigen::Vector3d MwM;
       getOutput(safe_,IrIM,qIM,MvM,MwM);
+
+      rot::RotationQuaternionPD qMI(qIM.inverted());
+
       Eigen::Matrix<double,12,12> Cov;
       Cov = getOutputCovariance(safe_);
 
@@ -437,10 +412,10 @@ void FilterInterface_RCARS::updateAndPublish(void){
       msg.pose.pose.position.x = IrIM(0);
       msg.pose.pose.position.y = IrIM(1);
       msg.pose.pose.position.z = IrIM(2);
-      msg.pose.pose.orientation.w = qIM.w();
-      msg.pose.pose.orientation.x = qIM.x();
-      msg.pose.pose.orientation.y = qIM.y();
-      msg.pose.pose.orientation.z = qIM.z();
+      msg.pose.pose.orientation.w = qMI.w();
+      msg.pose.pose.orientation.x = qMI.x();
+      msg.pose.pose.orientation.y = qMI.y();
+      msg.pose.pose.orientation.z = qMI.z();
       unsigned int indexArray[6] = {0,1,2,3,4,5};
       for(unsigned int i=0;i<6;i++){
         for(unsigned int j=0;j<6;j++){
