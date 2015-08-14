@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 	transformBroadcaster = std::make_shared<tf::TransformBroadcaster>();
 
 	message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> poseSub(nh, "estimator/filterPoseSafe", 2);
-	message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> extrinsicsSub(nh, "estimator/extrinsics", 2);
+	message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> extrinsicsSub(nh, "estimator/filterExtrinsics", 2);
 	message_filters::Subscriber<rcars_detector::TagArray> tagSub(nh, "estimator/tagsCameraFrame", 2);
 
 	typedef message_filters::sync_policies::ExactTime<geometry_msgs::PoseWithCovarianceStamped, geometry_msgs::PoseWithCovarianceStamped, rcars_detector::TagArray> rcarsStatePublisher;
