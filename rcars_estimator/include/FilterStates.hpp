@@ -320,6 +320,22 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
     cov_.template block<3,3>(mtState::template getId<mtState::_dya>(newInd),mtState::template getId<mtState::_dyp>(newInd)) = dynamicTagInitCov_.template block<3,3>(3,0);
     cov_.template block<3,3>(mtState::template getId<mtState::_dya>(newInd),mtState::template getId<mtState::_dya>(newInd)) = dynamicTagInitCov_.template block<3,3>(3,3);
   }
+  /*!
+   * Adds a new dynamic tag to the filter at index newInd and with tag ID tagId.
+   * VrVT and qTV are used for initializing the tag position.
+   */
+  void removeDynamicTag(int tagId){
+    const unsigned ind = state_.template get<mtState::_aux>().getDynamicIndFromTagId(tagId);
+    if(ind != -1){
+      state_.template get<mtState::_aux>().dynamicIds_[ind] = -1;
+      cov_.template block<mtState::D_,3>(0,mtState::template getId<mtState::_dyp>(ind)).setZero();
+      cov_.template block<3,mtState::D_>(mtState::template getId<mtState::_dyp>(ind),0).setZero();
+      cov_.template block<mtState::D_,3>(0,mtState::template getId<mtState::_dya>(ind)).setZero();
+      cov_.template block<3,mtState::D_>(mtState::template getId<mtState::_dya>(ind),0).setZero();
+      cov_.template block<3,3>(mtState::template getId<mtState::_dyp>(ind),mtState::template getId<mtState::_dyp>(ind)).setIdentity();
+      cov_.template block<3,3>(mtState::template getId<mtState::_dya>(ind),mtState::template getId<mtState::_dya>(ind)).setIdentity();
+    }
+  }
   void initWithAccelerometer(const V3D& fMeasInit){
     V3D unitZ(0,0,1);
     if(fMeasInit.norm()>1e-6){
