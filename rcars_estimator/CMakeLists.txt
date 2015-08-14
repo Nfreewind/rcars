@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(rcars_estimator)
-add_definitions(-std=c++0x -O3 -march=native)
 
-set(CMAKE_BUILD_TYPE RELEASE)
+add_definitions(-std=c++0x -march=native)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)

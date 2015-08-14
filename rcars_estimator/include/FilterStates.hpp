@@ -279,11 +279,13 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
   using Base::cov_;
   using Base::usePredictionMerge_;
   Eigen::Matrix<double,6,6> dynamicTagInitCov_;
+  bool hasSeenStaticTag_;
   /*!
    * Constructor
    */
   FilterState(){
     dynamicTagInitCov_.setIdentity();
+    hasSeenStaticTag_ = false;
   }
 
   /*!
@@ -304,10 +306,6 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
     cov_.template block<3,3>(mtState::template getId<mtState::_dya>(newInd),mtState::template getId<mtState::_dyp>(newInd)) = dynamicTagInitCov_.template block<3,3>(3,0);
     cov_.template block<3,3>(mtState::template getId<mtState::_dya>(newInd),mtState::template getId<mtState::_dya>(newInd)) = dynamicTagInitCov_.template block<3,3>(3,3);
   }
-//  void initWithImuPose(V3D IrIM, QPD qMI){ // TODO
-//    state_.template get<mtState::_pos>() = qMI.rotate(IrIM);
-//    state_.template get<mtState::_att>() = qMI.inverted();
-//  }
   void initWithAccelerometer(const V3D& fMeasInit){
     V3D unitZ(0,0,1);
     if(fMeasInit.norm()>1e-6){
@@ -315,6 +313,20 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
     } else {
       state_.template get<mtState::_att>().setIdentity();
     }
+    hasSeenStaticTag_ = false;
+  }
+  void alignToStaticTag(const V3D& IrIT, const QPD& qTI, const V3D& VrVT, const QPD& qTV){
+    // qIM_2 = qTI^T*qTV*qVM
+    // (qIM_2*q)^T*g = q^T*qIM_2^T*g = qIM_1^T*g
+    // qIM_2^T*g = q*(qIM_1^T*g)
+    // qIM_3 = qIM_2*q
+    // IrIM = IrIT - qIM*(qVM^T*VrVT + MrMV)
+    QPD qIM_2 = qTI.inverted()*qTV*state_.template get<mtState::_vea>();
+    V3D unitZ(0,0,1);
+    QPD q;
+    q.setFromVectors(qIM_2.inverseRotate(unitZ),state_.template get<mtState::_att>().inverseRotate(unitZ));
+    state_.template get<mtState::_att>() = qIM_2*q;
+    state_.template get<mtState::_pos>() = IrIT - state_.template get<mtState::_att>().rotate(V3D(state_.template get<mtState::_vea>().inverseRotate(VrVT) + state_.template get<mtState::_vep>()));
   }
 };
 

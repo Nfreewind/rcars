@@ -30,13 +30,13 @@
 #define CONFIG_RCARS_HPP_
 
 /*!
- * Number of dynamic tags (full 6DOF pose gets estimated)
+ * Number of dynamic tags (full 6DOF pose gets estimated), minimum 1
  */
-const int nDynamicTags = 3;
+const int nDynamicTags = 10;
 /*!
- * Number of hybrid tags (only gravity alignment gets estimated)
+ * Number of hybrid tags (only gravity alignment gets estimated), minimum 1
  */
-const int nHybridTags = 4;
+const int nHybridTags = 1;
 
 
 #endif /* CONFIG_RCARS_HPP_ */

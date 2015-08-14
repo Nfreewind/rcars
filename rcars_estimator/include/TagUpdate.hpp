@@ -364,6 +364,11 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
               hasValidMeas = true;
             }
           } else if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == STATIC_TAG){
+            if(!filterState.hasSeenStaticTag_){
+              filterState.alignToStaticTag(meas.template get<mtMeas::_aux>().IrIT_[measInd],meas.template get<mtMeas::_aux>().qTI_[measInd],
+                                           meas.template get<mtMeas::_aux>().tagPos_[measInd],meas.template get<mtMeas::_aux>().tagAtt_[measInd]);
+              filterState.hasSeenStaticTag_ = true;
+            }
             hasValidMeas = true;
           }
         }

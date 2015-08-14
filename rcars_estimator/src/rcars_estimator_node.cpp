@@ -28,6 +28,7 @@
 
 #include "ros/ros.h"
 #include "ros/console.h"
+#include <memory>
 
 #include <sensor_msgs/Imu.h>
 #include <rcars_detector/TagArray.h>
@@ -42,7 +43,7 @@ int main(int argc, char *argv[]){
   ROS_INFO("Launching RCARS estimator. Will be waiting for camera_info afterwards.");
 
   // Instance of filterInterface
-  FilterInterface_RCARS filterInterface(n);
+  std::unique_ptr<FilterInterface_RCARS> mpFilterInterface(new FilterInterface_RCARS(n));
 
   // Spin
   ros::spin();
@@ -54,7 +55,7 @@ int main(int argc, char *argv[]){
   if (saveWorkspace)
   {
 	  ROS_INFO("Saving Workspace.");
-	  filterInterface.saveWorkspace();
+	  mpFilterInterface->saveWorkspace();
   }
 
   return 0;
