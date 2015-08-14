@@ -75,7 +75,7 @@ void visualizeDetections(const rcars_detector::TagArrayConstPtr& detectedTags, c
 		{
 			for (size_t i=0; i<4; i++)
 			{
-				int rectangleSize = circleSize;
+				int rectangleSize = 2.0*circleSize;
 				cv::Point topLeft(cv::Point(corners[i].x-rectangleSize/2.0, corners[i].y-rectangleSize/2.0));
 				cv::Point bottomRight(cv::Point(corners[i].x+rectangleSize/2.0, corners[i].y+rectangleSize/2.0));
 				cv::rectangle(image, topLeft, bottomRight, CV_RGB(0,0,255), circleThickness);
@@ -167,8 +167,23 @@ void callbackFull(const sensor_msgs::ImageConstPtr& image, const rcars_detector:
 	cv::cvtColor(cvPtrGray->image, colorImage, CV_GRAY2RGB);
 
 	// visualize the detections
-	visualizeDetections(detectedTags, colorImage);
-	visualizeDetections(estimatedTags, colorImage, true, true);
+	visualizeDetections(detectedTags, colorImage, true);
+
+	// remove tags that are not seen by the detector
+	rcars_detector::TagArrayPtr estimatedTagsClean(new rcars_detector::TagArray);
+	estimatedTagsClean->header = estimatedTags->header;
+	for (size_t i=0; i<estimatedTags->tags.size(); i++)
+	{
+		for (size_t j=0; j<detectedTags->tags.size(); j++)
+		{
+			if (detectedTags->tags[j].id == estimatedTags->tags[i].id)
+			{
+				estimatedTagsClean->tags.push_back(estimatedTags->tags[i]);
+				break;
+			}
+		}
+	}
+	visualizeDetections(estimatedTagsClean, colorImage, false, true);
 
     // Publish Image
 	estimatorPublisher.publish(cvImage->toImageMsg());
