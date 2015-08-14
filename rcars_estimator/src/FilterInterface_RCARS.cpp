@@ -483,7 +483,7 @@ void FilterInterface_RCARS::updateAndPublish(void){
       unsigned int indexArrayExt[6] = {vepId, vepId+1, vepId+2, veaId, veaId+1, veaId+2};
       for(unsigned int i=0;i<6;i++){
         for(unsigned int j=0;j<6;j++){
-          msgExtrinsics.pose.covariance[6*i+j] = Cov(indexArrayExt[i],indexArrayExt[j]);
+          msgExtrinsics.pose.covariance[6*i+j] = safe_.cov_(indexArrayExt[i],indexArrayExt[j]);
         }
       }
       msgExtrinsics.header.stamp = ros::Time(safe_.t_);
