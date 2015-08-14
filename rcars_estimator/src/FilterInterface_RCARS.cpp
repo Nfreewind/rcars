@@ -65,11 +65,11 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) :
   subImu_ = nh_.subscribe("/imu0", 1000, &FilterInterface_RCARS::imuCallback,this);
   subTags_ = nhNonPrivate.subscribe("detector/tags", 10, &FilterInterface_RCARS::visionCallback,this);
   subCameraInfo_ = nh_.subscribe("/cam0/camera_info", 1, &FilterInterface_RCARS::cameraInfoCallback,this);
-  pubPose_ = nh_.advertise<geometry_msgs::PoseStamped>("filterPose", 1000);
-  pubTagArrayCameraFrame_ = nh_.advertise<rcars_detector::TagArray>("tagsCameraFrame", 1000);
-  pubTagArrayInertialFrame_ = nh_.advertise<rcars_detector::TagPoses>("tagsInertialFrame",1000);
-  pubPoseSafe_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterPoseSafe", 1000);
-  pubTwistSafe_ = nh_.advertise<geometry_msgs::TwistWithCovarianceStamped>("filterTwistSafe", 1000);
+  pubPose_ = nh_.advertise<geometry_msgs::PoseStamped>("filterPose", 20);
+  pubTagArrayCameraFrame_ = nh_.advertise<rcars_detector::TagArray>("tagsCameraFrame", 20);
+  pubTagArrayInertialFrame_ = nh_.advertise<rcars_detector::TagArray>("tagsInertialFrame",20);
+  pubPoseSafe_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterPoseSafe", 20);
+  pubTwistSafe_ = nh_.advertise<geometry_msgs::TwistWithCovarianceStamped>("filterTwistSafe", 20);
 
   resetService_ = nh_.advertiseService("reset", &FilterInterface_RCARS::resetServiceCallback, this);
   saveWorkspaceService_ = nh_.advertiseService("saveWorkspace", &FilterInterface_RCARS::saveWorkspaceCallback, this);

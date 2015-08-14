@@ -202,6 +202,7 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
   ros::Publisher pubTagArrayInertialFrame_;
   ros::Publisher pubPoseSafe_;
   ros::Publisher pubTwistSafe_;
+  ros::Publisher pubExtrinsics_;
 
   ros::ServiceServer resetService_;
   ros::ServiceServer saveWorkspaceService_;
