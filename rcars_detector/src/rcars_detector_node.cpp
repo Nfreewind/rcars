@@ -238,7 +238,7 @@ int main(int argc, char **argv)
 	bool useMultiThreading = false;
 	int nThreads = 0;
 	ros::param::param<bool>("~useMultiThreading", useMultiThreading, false);
-	ros::param::param<int>("~threadsForMultiThreading", nThreads, 0);
+	ros::param::param<int>("~nThreads", nThreads, 0);
 
 	// subscribe to images
 	int imageQueueSize = 2;
