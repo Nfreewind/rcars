@@ -390,8 +390,15 @@ void FilterInterface_RCARS::updateAndPublish(void){
   if (isInitialized_) {
     // Store the current time of the filter
     double t = safe_.t_;
-    // Do a safe update, i.e., to the prediction or update measurement which lies more back in time
-    updateSafe();
+    // Do a safe update, i.e., to the last image msg which has available imu data
+    double lastImuTime;
+    if(predictionTimeline_.getLastTime(lastImuTime)){
+      auto rit = std::get<0>(updateTimelineTuple_).measMap_.rbegin();
+      while(rit != std::get<0>(updateTimelineTuple_).measMap_.rend() && rit->first > lastImuTime) ++rit;
+      const double updateTime = rit->first;
+      if(rit != std::get<0>(updateTimelineTuple_).measMap_.rend()) updateSafe(&updateTime);
+    }
+
     // Check if something has changed, if yes publish filter state
     if(safe_.t_>t){
 
