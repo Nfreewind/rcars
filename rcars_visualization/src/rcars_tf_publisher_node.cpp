@@ -22,6 +22,70 @@
 
 std::shared_ptr<tf::TransformBroadcaster> transformBroadcaster;
 
+struct StaticTag
+{
+	int tagId;
+	std::string tagType;
+	tf::Vector3 IrIT;
+	tf::Quaternion qTI;
+};
+
+std::vector<StaticTag> staticTags;
+
+void loadWorkspace(ros::NodeHandle& nh)
+{
+	std::vector<int> calibratedTags;
+	if (!nh.getParam("estimator/workspace/calibratedTags", calibratedTags))
+	{
+		ROS_INFO("No calibrated tags found.");
+		return;
+	}
+
+	for (size_t i=0; i<calibratedTags.size(); i++)
+	{
+		StaticTag tag;
+
+		tag.tagId = calibratedTags[i];
+
+		std::string parameterBaseName = "estimator/workspace/tags/tag" + std::to_string(tag.tagId);
+
+		double posx, posy, posz;
+
+		if (
+			nh.getParam(parameterBaseName+"/type", tag.tagType) &&
+			nh.getParam(parameterBaseName+"/pose/position/x", posx) &&
+			nh.getParam(parameterBaseName+"/pose/position/y", posy) &&
+			nh.getParam(parameterBaseName+"/pose/position/z", posz)
+		)
+		{
+			if (tag.tagType == "static")
+			{
+				double w, x, y, z;
+				if (nh.getParam(parameterBaseName+"/pose/orientation/w", w) &&
+					nh.getParam(parameterBaseName+"/pose/orientation/x", x) &&
+					nh.getParam(parameterBaseName+"/pose/orientation/y", y) &&
+					nh.getParam(parameterBaseName+"/pose/orientation/z", z)
+				)
+				{
+				  tag.qTI = tf::Quaternion(x,y,z,w);
+				  tag.IrIT = tf::Vector3(posx,posy,posz);
+				  staticTags.push_back(tag);
+				} else
+				{
+					ROS_FATAL("Could not get orientation for tag %d", tag.tagId);
+				}
+			}
+			else
+			{
+				ROS_FATAL("Unknown tag type of tag %d", tag.tagId);
+			}
+		} else
+		{
+			ROS_FATAL("Tag type and/or position is unspecified for tag %d", tag.tagId);
+		}
+	}
+}
+
 void publish_T_IM(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose)
 {
 	// Publish the corresponding tf
@@ -73,6 +137,25 @@ void publish_T_VT(const rcars_detector::TagArrayConstPtr& detectedTags)
 	}
 }
 
+void publish_static_tags(const std_msgs::Header& header)
+{
+	for (size_t i=0; i<staticTags.size(); i++)
+	{
+		// Publish the corresponding tf
+		tf::StampedTransform T_IT;
+		T_IT.frame_id_ = "rcars_inertial";
+		T_IT.child_frame_id_ = "rcars_tag" + std::to_string(staticTags[i].tagId) + "_static";
+		T_IT.stamp_ = header.stamp;
+
+		tf::Transform tf;
+		tf.setOrigin(staticTags[i].IrIT);
+		tf.setRotation(staticTags[i].qTI);
+		T_IT.setData(tf);
+
+		transformBroadcaster->sendTransform(T_IT);
+	}
+}
+
 void publish_T_WI(const std_msgs::Header& header)
 {
 	// Publish the corresponding tf
@@ -94,6 +177,7 @@ void callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose, cons
 	publish_T_IM(pose);
 	publish_T_MV(extrinsics);
 	publish_T_VT(detectedTags);
+	publish_static_tags(detectedTags->header);
 
 	publish_T_WI(pose->header);
 }
@@ -105,6 +189,8 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "tf_publisher");
 	ros::NodeHandle nh;
 	ros::NodeHandle nhPrivate("~");
+
+	loadWorkspace(nh);
 
 	transformBroadcaster = std::make_shared<tf::TransformBroadcaster>();
 
