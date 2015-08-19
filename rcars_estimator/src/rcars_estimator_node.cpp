@@ -35,12 +35,16 @@
 #include "FilterRCARS.hpp"
 #include "FilterInterface_RCARS.hpp"
 
-
 int main(int argc, char *argv[]){
+  Eigen::initParallel();
+
   // Ros initialization and ros node handle
   ros::init(argc, argv, "estimator");
   ros::NodeHandle n("~");
   ROS_INFO("Launching RCARS estimator. Will be waiting for camera_info afterwards.");
+
+  // wait for parameters to be loaded
+  ros::Duration(2.0).sleep();
 
   // Instance of filterInterface
   std::unique_ptr<FilterInterface_RCARS> mpFilterInterface(new FilterInterface_RCARS(n));
