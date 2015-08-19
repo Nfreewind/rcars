@@ -1,0 +1,7 @@
+<launch>
+  <node name="visualizer" ns="rcars" pkg="rcars_visualization" type="rcars_image_visualization_node" output="screen" />
+  
+  <node name="tf_publisher" ns="rcars" pkg="rcars_visualization" type="rcars_tf_publisher_node" output="screen" />
+  
+  <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find rcars_estimator)/config/debug.rviz" />
+</launch>

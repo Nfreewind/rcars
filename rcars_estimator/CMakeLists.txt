@@ -1,15 +1,17 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(rcars_estimator)
-add_definitions(-std=c++0x -O3 -march=native)
 
-set(CMAKE_BUILD_TYPE RELEASE)
+add_definitions(-std=c++0x -march=native)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED
+	lightweight_filtering
     roscpp
+    roslib
     sensor_msgs
+    std_srvs
     rcars_detector
 	tf
 	cmake_modules
@@ -115,6 +117,7 @@ include_directories(
 
 ## Declare a cpp executable
 add_executable(rcars_estimator_node src/rcars_estimator_node.cpp src/FilterInterface_RCARS.cpp)
+add_executable(rcars_test src/rcars_test.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes

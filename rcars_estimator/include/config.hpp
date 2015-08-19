@@ -26,41 +26,17 @@
 *
 */
 
-#include "ros/ros.h"
-#include "ros/console.h"
-#include <memory>
+#ifndef CONFIG_RCARS_HPP_
+#define CONFIG_RCARS_HPP_
 
-#include <sensor_msgs/Imu.h>
-#include <rcars_detector/TagArray.h>
-#include "FilterRCARS.hpp"
-#include "FilterInterface_RCARS.hpp"
+/*!
+ * Number of dynamic tags (full 6DOF pose gets estimated), minimum 1
+ */
+const int nDynamicTags = 10;
+/*!
+ * Number of hybrid tags (only gravity alignment gets estimated), minimum 1
+ */
+const int nHybridTags = 1;
 
-int main(int argc, char *argv[]){
-  Eigen::initParallel();
 
-  // Ros initialization and ros node handle
-  ros::init(argc, argv, "estimator");
-  ros::NodeHandle n("~");
-  ROS_INFO("Launching RCARS estimator. Will be waiting for camera_info afterwards.");
-
-  // wait for parameters to be loaded
-  ros::Duration(2.0).sleep();
-
-  // Instance of filterInterface
-  std::unique_ptr<FilterInterface_RCARS> mpFilterInterface(new FilterInterface_RCARS(n));
-
-  // Spin
-  ros::spin();
-
-  // Save workspace
-  bool saveWorkspace = false;
-  n.param<bool>("autosaveWorkspace", saveWorkspace, saveWorkspace);
-
-  if (saveWorkspace)
-  {
-	  ROS_INFO("Saving Workspace.");
-	  mpFilterInterface->saveWorkspace();
-  }
-
-  return 0;
-}
+#endif /* CONFIG_RCARS_HPP_ */

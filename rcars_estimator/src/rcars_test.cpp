@@ -26,41 +26,36 @@
 *
 */
 
-#include "ros/ros.h"
-#include "ros/console.h"
-#include <memory>
-
-#include <sensor_msgs/Imu.h>
-#include <rcars_detector/TagArray.h>
 #include "FilterRCARS.hpp"
-#include "FilterInterface_RCARS.hpp"
 
-int main(int argc, char *argv[]){
-  Eigen::initParallel();
+int main(int argc, char** argv){
+  unsigned int s;
 
-  // Ros initialization and ros node handle
-  ros::init(argc, argv, "estimator");
-  ros::NodeHandle n("~");
-  ROS_INFO("Launching RCARS estimator. Will be waiting for camera_info afterwards.");
+  typedef rcars::FilterRCARS<3,4> mtFilter;
+  typedef mtFilter::mtFilterState mtFilterState;
+  typedef mtFilterState::mtState mtState;
+  mtState state;
+  state.setRandom(s);
+  state.template get<mtState::_aux>().dynamicIds_[0] = 0;
 
-  // wait for parameters to be loaded
-  ros::Duration(2.0).sleep();
+  rcars::ImuPrediction<mtFilterState> mPrediction;
+  mPrediction.testJacs(1e-8,1e-5,0.1);
 
-  // Instance of filterInterface
-  std::unique_ptr<FilterInterface_RCARS> mpFilterInterface(new FilterInterface_RCARS(n));
-
-  // Spin
-  ros::spin();
-
-  // Save workspace
-  bool saveWorkspace = false;
-  n.param<bool>("autosaveWorkspace", saveWorkspace, saveWorkspace);
-
-  if (saveWorkspace)
-  {
-	  ROS_INFO("Saving Workspace.");
-	  mpFilterInterface->saveWorkspace();
-  }
+  rcars::TagUpdate<mtFilterState> mTagUpdate;
+  typedef rcars::TagUpdate<mtFilterState>::mtMeas mtTagUpdateMeas;
+  mtTagUpdateMeas tagUpdateMeas;
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().resize(1);
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagIds_[0] = 0;
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagTypes_[0] = rcars::DYNAMIC_TAG;
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().VrVC_[0] << 204.292, 152.97, 251.154, 152.893, 204.117, 192.845, 252.616, 191.779;
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagPos_[0] = V3D(-0.543614, -0.213167, 1.55529);
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagAtt_[0] = QPD(-0.192343, 0.972483, -0.0485181, 0.122176);
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().IrIT_[0] = V3D(-0.543614, -0.213167, 1.55529);
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().qTI_[0] = QPD(-0.192343, 0.972483, -0.0485181, 0.122176);
+  tagUpdateMeas.print();
+  mTagUpdate.testJacs(state,tagUpdateMeas,1e-8,1e-5,0.1);
+  tagUpdateMeas.get<mtTagUpdateMeas::_aux>().tagTypes_[0] = rcars::STATIC_TAG;
+  mTagUpdate.testJacs(state,tagUpdateMeas,1e-8,1e-5,0.1);
 
   return 0;
 }

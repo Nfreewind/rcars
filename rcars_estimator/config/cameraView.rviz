@@ -111,83 +111,83 @@ Visualization Manager:
           Value: true
         rcars_inertial:
           Value: true
-        rcars_tag36_dyn:
+        rcars_tag36_static:
           Value: true
-        rcars_tag38_dyn:
+        rcars_tag38_static:
           Value: true
-        rcars_tag39_dyn:
+        rcars_tag39_static:
           Value: true
-        rcars_tag40_dyn:
+        rcars_tag40_static:
           Value: true
-        rcars_tag41_dyn:
+        rcars_tag41_static:
           Value: true
-        rcars_tag42_dyn:
+        rcars_tag42_static:
           Value: true
-        rcars_tag43_dyn:
+        rcars_tag43_static:
           Value: true
-        rcars_tag44_dyn:
+        rcars_tag44_static:
           Value: true
-        rcars_tag48_dyn:
+        rcars_tag48_static:
           Value: true
-        rcars_tag49_dyn:
+        rcars_tag49_static:
           Value: true
-        rcars_tag50_dyn:
+        rcars_tag50_static:
           Value: true
-        rcars_tag51_dyn:
+        rcars_tag51_static:
           Value: true
-        rcars_tag52_dyn:
+        rcars_tag52_static:
           Value: true
-        rcars_tag53_dyn:
+        rcars_tag53_static:
           Value: true
-        rcars_tag54_dyn:
+        rcars_tag54_static:
           Value: true
-        rcars_tag55_dyn:
+        rcars_tag55_static:
           Value: true
-        rcars_tag56_dyn:
+        rcars_tag56_static:
           Value: true
-        rcars_tag57_dyn:
+        rcars_tag57_static:
           Value: true
-        rcars_tag59_dyn:
+        rcars_tag59_static:
           Value: true
-        rcars_tag66_dyn:
+        rcars_tag66_static:
           Value: true
-        rcars_tag67_dyn:
+        rcars_tag67_static:
           Value: true
-        rcars_tag68_dyn:
+        rcars_tag68_static:
           Value: true
-        rcars_tag69_dyn:
+        rcars_tag69_static:
           Value: true
-        rcars_tag70_dyn:
+        rcars_tag70_static:
           Value: true
-        rcars_tag71_dyn:
+        rcars_tag71_static:
           Value: true
-        rcars_tag72_dyn:
+        rcars_tag72_static:
           Value: true
-        rcars_tag73_dyn:
+        rcars_tag73_static:
           Value: true
-        rcars_tag74_dyn:
+        rcars_tag74_static:
           Value: true
-        rcars_tag75_dyn:
+        rcars_tag75_static:
           Value: true
-        rcars_tag76_dyn:
+        rcars_tag76_static:
           Value: true
-        rcars_tag77_dyn:
+        rcars_tag77_static:
           Value: true
-        rcars_tag78_dyn:
+        rcars_tag78_static:
           Value: true
-        rcars_tag79_dyn:
+        rcars_tag79_static:
           Value: true
-        rcars_tag82_dyn:
+        rcars_tag82_static:
           Value: true
-        rcars_tag83_dyn:
+        rcars_tag83_static:
           Value: true
-        rcars_tag84_dyn:
+        rcars_tag84_static:
           Value: true
         world:
           Value: true
       Marker Scale: 1
       Name: TF
-      Show Arrows: true
+      Show Arrows: false
       Show Axes: true
       Show Names: true
       Tree:
@@ -195,84 +195,85 @@ Visualization Manager:
           rcars_inertial:
             rcars_IMU:
               rcars_camera:
-                rcars_tag36_dyn:
-                  {}
-                rcars_tag38_dyn:
-                  {}
-                rcars_tag39_dyn:
-                  {}
-                rcars_tag40_dyn:
-                  {}
-                rcars_tag41_dyn:
-                  {}
-                rcars_tag42_dyn:
-                  {}
-                rcars_tag43_dyn:
-                  {}
-                rcars_tag44_dyn:
-                  {}
-                rcars_tag48_dyn:
-                  {}
-                rcars_tag49_dyn:
-                  {}
-                rcars_tag50_dyn:
-                  {}
-                rcars_tag51_dyn:
-                  {}
-                rcars_tag52_dyn:
-                  {}
-                rcars_tag53_dyn:
-                  {}
-                rcars_tag54_dyn:
-                  {}
-                rcars_tag55_dyn:
-                  {}
-                rcars_tag56_dyn:
-                  {}
-                rcars_tag57_dyn:
-                  {}
-                rcars_tag59_dyn:
-                  {}
-                rcars_tag66_dyn:
-                  {}
-                rcars_tag67_dyn:
-                  {}
-                rcars_tag68_dyn:
-                  {}
-                rcars_tag69_dyn:
-                  {}
-                rcars_tag70_dyn:
-                  {}
-                rcars_tag71_dyn:
-                  {}
-                rcars_tag72_dyn:
-                  {}
-                rcars_tag73_dyn:
-                  {}
-                rcars_tag74_dyn:
-                  {}
-                rcars_tag75_dyn:
-                  {}
-                rcars_tag76_dyn:
-                  {}
-                rcars_tag77_dyn:
-                  {}
-                rcars_tag78_dyn:
-                  {}
-                rcars_tag79_dyn:
-                  {}
-                rcars_tag82_dyn:
-                  {}
-                rcars_tag83_dyn:
-                  {}
-                rcars_tag84_dyn:
-                  {}
+                {}
+            rcars_tag36_static:
+              {}
+            rcars_tag38_static:
+              {}
+            rcars_tag39_static:
+              {}
+            rcars_tag40_static:
+              {}
+            rcars_tag41_static:
+              {}
+            rcars_tag42_static:
+              {}
+            rcars_tag43_static:
+              {}
+            rcars_tag44_static:
+              {}
+            rcars_tag48_static:
+              {}
+            rcars_tag49_static:
+              {}
+            rcars_tag50_static:
+              {}
+            rcars_tag51_static:
+              {}
+            rcars_tag52_static:
+              {}
+            rcars_tag53_static:
+              {}
+            rcars_tag54_static:
+              {}
+            rcars_tag55_static:
+              {}
+            rcars_tag56_static:
+              {}
+            rcars_tag57_static:
+              {}
+            rcars_tag59_static:
+              {}
+            rcars_tag66_static:
+              {}
+            rcars_tag67_static:
+              {}
+            rcars_tag68_static:
+              {}
+            rcars_tag69_static:
+              {}
+            rcars_tag70_static:
+              {}
+            rcars_tag71_static:
+              {}
+            rcars_tag72_static:
+              {}
+            rcars_tag73_static:
+              {}
+            rcars_tag74_static:
+              {}
+            rcars_tag75_static:
+              {}
+            rcars_tag76_static:
+              {}
+            rcars_tag77_static:
+              {}
+            rcars_tag78_static:
+              {}
+            rcars_tag79_static:
+              {}
+            rcars_tag82_static:
+              {}
+            rcars_tag83_static:
+              {}
+            rcars_tag84_static:
+              {}
       Update Interval: 0
       Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: world
+    Fixed Frame: rcars_camera
     Frame Rate: 30
   Name: root
   Tools:
@@ -293,22 +294,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 8.44269
+      Distance: 1.52583
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -1.44525
-        Y: 0.353959
-        Z: 0.402149
+        X: 0.027725
+        Y: 0.0360788
+        Z: -0.297356
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.185204
+      Pitch: -1.5698
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 6.23996
+      Yaw: 4.71178
     Saved: ~
 Window Geometry:
   Displays:

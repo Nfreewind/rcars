@@ -22,7 +22,7 @@ Tag:
   qVBy: -0.00390811
   qVBz: 0.712747
   OutlierThreshold: 15.51
-  tagSize: 0.16
+  tagSize: 0.232
 States: 
   pos: 
     initx: 0.0

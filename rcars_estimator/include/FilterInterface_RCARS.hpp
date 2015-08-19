@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2014, Autonomous Systems Lab
+* Copyright (c) 2014, Michael Neunert & Michael Blösch
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -9,7 +9,7 @@
 * * Redistributions in binary form must reproduce the above copyright
 * notice, this list of conditions and the following disclaimer in the
 * documentation and/or other materials provided with the distribution.
-* * Neither the name of the Autonomous Systems Lab, ETH Zurich nor the
+* * Neither the name of the ETH Zurich nor the
 * names of its contributors may be used to endorse or promote products
 * derived from this software without specific prior written permission.
 *
@@ -30,11 +30,14 @@
 #define FilterInterface_RCARS_HPP_
 
 #include <ros/ros.h>
+#include <ros/package.h>
 #include <tf/tf.h>
 #include <tf/transform_broadcaster.h>
 #include <tf_conversions/tf_eigen.h>
 
+#include <config.hpp>
 #include <FilterRCARS.hpp>
+#include <std_srvs/Empty.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
@@ -44,10 +47,16 @@
 #include <rcars_detector/TagArray.h>
 #include <rcars_detector/TagPoses.h>
 
-#include "ParameterLoader.hpp"
-
-class FilterInterface_RCARS: public FilterRCARS::Filter<3>{
+class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>{
  public:
+  /*!
+   * Typedefs and using-declarations
+   */
+  typedef rcars::PredictionMeas mtPredictionMeas;
+  typedef typename rcars::TagUpdate<mtFilterState>::mtMeas mtUpdateMeas;
+
+  static constexpr int nTags_ =  mtState::nTags_;
+
   /*!
    * Constructor.
    */
@@ -62,6 +71,16 @@ class FilterInterface_RCARS: public FilterRCARS::Filter<3>{
    * Initialize using a given tag measurement.
    */
   void initializeFilterWithTag(const mtUpdateMeas& meas, const double& t);
+
+  /*!
+   * Callback function for service that saves the current workspace
+   */
+  bool saveWorkspaceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+
+  /*!
+   * Callback for service that resets the filter
+   */
+  bool resetServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
 
   /*!
    * Callback for IMU ros messages.
@@ -88,7 +107,27 @@ class FilterInterface_RCARS: public FilterRCARS::Filter<3>{
    */
   void publishTagPoses(void);
 
+  /*!
+   * Safe workspace to config
+   */
+  void saveWorkspace();
+
  private:
+  /*!
+   * Loads workspace from config
+   */
+  void loadWorkspace();
+
+  /*!
+   * Add static tag
+   */
+  void addStaticTag(int tagId, rcars::TagType tagType, const V3D& IrIT, const QPD& qTI);
+
+  /*!
+    * Boolean if vision data is available
+    */
+  bool properVisionDataAvailable_;
+
   /*!
    * Time of initialization
    */
@@ -101,32 +140,81 @@ class FilterInterface_RCARS: public FilterRCARS::Filter<3>{
    * Flag. True if the camera info is available.
    */
   bool camInfoAvailable_;
-  /*!
-   * ID of initialization tag, -1 if no intialization tag is required.
-   */
-  int initTag_;
-  /*!
-   * Flag. True if the initialization tag was found.
-   */
-  bool foundInitTag_;
-  /*!
-   * Time of first observation of initialization tag
-   */
-  double foundInitTagTime_;
 
+  /*!
+   * ID of reference tag for workspace alignment, -1 if no reference tag is configured.
+   */
+  int referenceTagId_;
+
+  /*!
+   * Counter how many times a tag has to be seen until it gets added to the calibrated workspace.
+   */
+  int calibrationViewCountThreshold_;
+
+  /*!
+   * Map from tagId to tag type
+   */
+  std::map<int, rcars::TagType> tagType_;
+
+  /*!
+   * Counts how often a tag has been seen
+   */
+  std::map<int, unsigned int> tagViewCount_;
+
+  /*!
+   * Counts how often a tag has been seen while a second one was seen at the same time
+   */
+  std::map<int, unsigned int> tagViewOverlapCount_;
+
+  /*!
+   * Map from tagId to tag position for calibratedTags
+   */
+  std::map<int, Eigen::Vector3d, std::less<int>,
+           Eigen::aligned_allocator<std::pair<const int, Eigen::Vector3d> > > IrIT_;
+
+  /*!
+   * Map from tagId to tag orientation for calibratedTags
+   */
+  std::map<int, rot::RotationQuaternionPD, std::less<int>,
+           Eigen::aligned_allocator<std::pair<const int, rot::RotationQuaternionPD> > > qTI_;
+
+  /*!
+   * Orientation of workspace with respect to reference tag
+   */
+  rot::RotationQuaternionPD qTW_;
+
+  /*!
+   * Location of reference tag in workspace
+   */
+  Eigen::Vector3d WrWT_;
+
+  /*!
+   * Flag if workspace gets overwritten (or just updated)
+   */
+  bool overwriteWorkspace_;
+
+  /*!
+   * Should RCARS wait for the measurement of a static tag before initializing
+   */
+  bool initializeWithStaticTagOnly_;
 
   /*!
    * Ros publishers and subscribers
    */
+  ros::NodeHandle& nh_;
+
   ros::Subscriber subImu_;
   ros::Subscriber subTags_;
   ros::Subscriber subCameraInfo_;
   ros::Publisher pubPose_;
-  ros::Publisher pubTagPoses_;
+  ros::Publisher pubTagArrayCameraFrame_;
+  ros::Publisher pubTagArrayInertialFrame_;
   ros::Publisher pubPoseSafe_;
   ros::Publisher pubTwistSafe_;
-  ros::Publisher pubTagPosesBody_;
-  ros::Publisher pubTagVis_;
+  ros::Publisher pubExtrinsics_;
+
+  ros::ServiceServer resetService_;
+  ros::ServiceServer saveWorkspaceService_;
 };
 
 #endif /* FilterInterface_RCARS_HPP_ */

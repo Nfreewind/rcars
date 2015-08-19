@@ -1,0 +1,12 @@
+<launch>
+  <node name="visensor_node" pkg="visensor_node" type="visensor_node" />
+
+  <node pkg="rosbag" type="record" name="record"
+       args="-a /cam0/image_raw /cam0/calibration /cam0/camera_info /cam1/image_raw /cam1/calibration /cam1/camera_info /imu0 /visensor_node/parameter_descriptions -O rcars.bag" />
+      
+
+  <node pkg="image_view" type="image_view" name="image_view">
+        <remap from="image" to="/cam0/image_raw"/>
+  </node>
+  
+</launch>

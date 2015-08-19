@@ -1,17 +1,22 @@
 <launch>
   <node name="image_proc" pkg="image_proc" type="image_proc" ns="/cam0" />
 
-  <node name="detector" ns="rcars" pkg="rcars_detector" type="rcars_detector_node">
+  <node name="detector" ns="rcars" pkg="rcars_detector" type="rcars_detector_node" output="screen">
      <param name="tagFamily" value="4" />
      <param name="publishDebugImage" value="true" />
      <param name="useMultiThreading" value="true" />
      <param name="nThreads" value="4" />
   </node>
   
-  <node name="estimator" ns="rcars" pkg="rcars_estimator" type="rcars_estimator_node">
-    <rosparam command="load" file="$(find rcars_estimator)/config/parametersRCARS.yaml"/>
+  <node name="estimator" ns="rcars" pkg="rcars_estimator" type="rcars_estimator_node" output="screen">
+    <rosparam command="delete" ns="workspace" />
+    <!-- <rosparam command="load" file="$(find rcars_estimator)/config/workspaces/example.yaml" ns="workspace" /> -->
+    <param name="filterParameterFile" value="$(find rcars_estimator)/config/parametersRCARS.info"/>
+    <param name="overwriteWorkspace" value="false" />
+    <param name="initializeWithStaticTagOnly" value="false" />
+    <param name="calibrationViewCountThreshold" value="10" />
+    <param name="workspaceFilename" value="$(find rcars_estimator)/config/workspaces/test.yaml" />
+    <param name="autosaveWorkspace" value="false" />
   </node>
-  
-  <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find rcars_estimator)/config/debug.rviz" />
-  
+
 </launch>
