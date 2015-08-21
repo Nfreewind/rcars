@@ -19,8 +19,14 @@
 
 #include <tf/tf.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 
-std::shared_ptr<tf::TransformBroadcaster> transformBroadcaster;
+std::shared_ptr<tf::TransformBroadcaster> pTransformBroadcaster;
+std::shared_ptr<tf::TransformListener> pListener;
+
+bool do_align_frames = false;
+std::string frame_rcars;
+std::string frame_align;
 
 struct StaticTag
 {
@@ -99,7 +105,7 @@ void publish_T_IM(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose)
 	tf.setRotation(tf::Quaternion(pose->pose.pose.orientation.x, pose->pose.pose.orientation.y, pose->pose.pose.orientation.z, pose->pose.pose.orientation.w));
 	T_IM.setData(tf);
 
-	transformBroadcaster->sendTransform(T_IM);
+	pTransformBroadcaster->sendTransform(T_IM);
 }
 
 void publish_T_MV(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose)
@@ -115,7 +121,7 @@ void publish_T_MV(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose)
 	tf.setRotation(tf::Quaternion(pose->pose.pose.orientation.x, pose->pose.pose.orientation.y, pose->pose.pose.orientation.z, pose->pose.pose.orientation.w));
 	T_MV.setData(tf);
 
-	transformBroadcaster->sendTransform(T_MV);
+	pTransformBroadcaster->sendTransform(T_MV);
 }
 
 void publish_T_VT(const rcars_detector::TagArrayConstPtr& detectedTags)
@@ -133,7 +139,7 @@ void publish_T_VT(const rcars_detector::TagArrayConstPtr& detectedTags)
 		tf.setRotation(tf::Quaternion(detectedTags->tags[i].pose.orientation.x, detectedTags->tags[i].pose.orientation.y, detectedTags->tags[i].pose.orientation.z, detectedTags->tags[i].pose.orientation.w));
 		T_VT.setData(tf);
 
-		transformBroadcaster->sendTransform(T_VT);
+		pTransformBroadcaster->sendTransform(T_VT);
 	}
 }
 
@@ -152,15 +158,71 @@ void publish_static_tags(const std_msgs::Header& header)
 		tf.setRotation(staticTags[i].qTI);
 		T_IT.setData(tf);
 
-		transformBroadcaster->sendTransform(T_IT);
+		pTransformBroadcaster->sendTransform(T_IT);
 	}
 }
 
-void publish_T_WI(const std_msgs::Header& header)
+void publish_T_WW(const std_msgs::Header& header)
 {
 	// Publish the corresponding tf
+	tf::StampedTransform T_WW;
+	T_WW.frame_id_ = "world";
+	T_WW.child_frame_id_ = "rcars_workspace";
+	T_WW.stamp_ = header.stamp;
+
+	tf::Transform tf;
+	tf.setOrigin(tf::Vector3(0, 0, 0));
+	tf.setRotation(tf::Quaternion(0, 0, 0, 1));
+	T_WW.setData(tf);
+
+	pTransformBroadcaster->sendTransform(T_WW);
+}
+
+/**
+ *   \brief This function aligns two frames and publishes the transformation "workspace->align1=align2->inertial"
+ *   \param header of the published new rcars data, used for timing information only.
+ *   \return void
+ */
+void publish_T_WI(const std_msgs::Header& header) {
+	//the transformation from workspace frame to alignment 1
+	tf::StampedTransform T_WA1;
+	//the transformation from inertial frame to alignment 2
+	tf::StampedTransform T_A2I;
+	//the transformation we want to calculate: from workspace to inertial frame
 	tf::StampedTransform T_WI;
-	T_WI.frame_id_ = "world";
+	//get T_WA1 and T_A2I
+	try {
+		pListener->waitForTransform("/rcars_workspace", "/"+frame_align, header.stamp, ros::Duration(1.0));
+		pListener->lookupTransform("/rcars_workspace", "/"+frame_align, header.stamp, T_WA1);
+		pListener->waitForTransform("/"+frame_rcars, "/rcars_inertial", header.stamp, ros::Duration(1.0));
+		pListener->lookupTransform("/"+frame_rcars, "/rcars_inertial", header.stamp, T_A2I);
+	}
+	catch (tf::TransformException &ex) {
+		ROS_ERROR("COULDN'T align frames! Nothing will be published! Try again in 3 seconds! Error Message: %s.",ex.what());
+		ros::Duration(3.0).sleep();
+		return;
+	}
+
+	//calculate T_WI = T_WA1*T_A2I
+	T_WI.frame_id_ = "rcars_workspace";
+	T_WI.child_frame_id_ = "rcars_inertial";
+	T_WI.stamp_ = header.stamp;
+	T_WI.setData(T_WA1*T_A2I);
+
+	//publish data
+	pTransformBroadcaster->sendTransform(T_WI);
+}
+
+/**
+ *	\brief This function sets the Workspace frame the same as the inertial frame.
+ *	This function is executed if frame alignment is not desired. (do_frame_alignment = false).
+ *	\param header of the published new rcars data, used for timing information only.
+ * 	\return void
+ */
+void publish_T_WI_AS_EQUAL(const std_msgs::Header& header) {
+	// Publish the corresponding tf
+	tf::StampedTransform T_WI;
+	T_WI.frame_id_ = "rcars_workspace";
 	T_WI.child_frame_id_ = "rcars_inertial";
 	T_WI.stamp_ = header.stamp;
 
@@ -169,7 +231,7 @@ void publish_T_WI(const std_msgs::Header& header)
 	tf.setRotation(tf::Quaternion(0, 0, 0, 1));
 	T_WI.setData(tf);
 
-	transformBroadcaster->sendTransform(T_WI);
+	pTransformBroadcaster->sendTransform(T_WI);
 }
 
 void callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose, const geometry_msgs::PoseWithCovarianceStampedConstPtr& extrinsics, const rcars_detector::TagArrayConstPtr& detectedTags)
@@ -179,7 +241,14 @@ void callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose, cons
 	publish_T_VT(detectedTags);
 	publish_static_tags(detectedTags->header);
 
-	publish_T_WI(pose->header);
+	publish_T_WW(pose->header);
+	//check if frame wants to be aligned.
+	if(do_align_frames) {
+		publish_T_WI(pose->header);
+	}
+	else {
+		publish_T_WI_AS_EQUAL(pose->header);
+	}
 }
 
 int main(int argc, char **argv)
@@ -192,8 +261,16 @@ int main(int argc, char **argv)
 
 	loadWorkspace(nh);
 
-	transformBroadcaster = std::make_shared<tf::TransformBroadcaster>();
+	pTransformBroadcaster = std::make_shared<tf::TransformBroadcaster>();
+	pListener = std::make_shared<tf::TransformListener>();
 
+	ros::param::param<bool>("~align_workspace", do_align_frames, false);
+	ros::param::param<std::string>("~frame_rcars", frame_rcars, "");
+	ros::param::param<std::string>("~frame_align", frame_align, "");
+
+	if((frame_rcars.empty() || frame_align.empty()) && do_align_frames) {
+		ROS_ERROR("trying to align frames but got empty string for one or both frame IDs. Alignment will probably fail.");
+	}
 	message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> poseSub(nh, "estimator/filterPoseSafe", 2);
 	message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> extrinsicsSub(nh, "estimator/filterExtrinsics", 2);
 	message_filters::Subscriber<rcars_detector::TagArray> tagSub(nh, "estimator/tagsCameraFrame", 2);
