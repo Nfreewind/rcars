@@ -11,7 +11,7 @@
   <node name="estimator" ns="rcars" pkg="rcars_estimator" type="rcars_estimator_node" output="screen">
     <rosparam command="delete" ns="workspace" />
     <!-- <rosparam command="load" file="$(find rcars_estimator)/config/workspaces/example.yaml" ns="workspace" /> -->
-    <param name="filterParameterFile" value="$(find rcars_estimator)/config/parametersRCARS.info"/>
+    <param name="filterParameterFile" value="$(find rcars_estimator)/config/EKFsettings.info"/>
     <param name="overwriteWorkspace" value="false" />
     <param name="initializeWithStaticTagOnly" value="false" />
     <param name="calibrationViewCountThreshold" value="10" />

@@ -59,7 +59,6 @@ Update0
 {
     PixelStd 2.0
     MahalanobisTh0 50 ; 15.5823996
-    tagSize 0.16
     initTagPosCov 10.0
     initTagAttCov 1.0
     maxWaitTime 0.5
