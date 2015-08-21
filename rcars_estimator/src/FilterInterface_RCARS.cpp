@@ -29,7 +29,7 @@
 #include "FilterInterface_RCARS.hpp"
 
 
-FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) :
+FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh, ros::NodeHandle& nhRCARS) :
 	nh_(nh)
 {
   ros::NodeHandle nhNonPrivate;
@@ -43,6 +43,12 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) :
   nh_.param<int>("calibrationViewCountThreshold", calibrationViewCountThreshold_, 10);
   nh_.param<bool>("overwriteWorkspace", overwriteWorkspace_, false);
   nh_.param<bool>("initializeWithStaticTagOnly", initializeWithStaticTagOnly_, false);
+
+  if(!nhRCARS.getParam("tagSize", std::get<0>(mUpdates_).tagSize_))
+  {
+	  ROS_FATAL("tagSize parameter not set. Cannot estimate without tagSize. Please add it to the ROS parameter server or configFile");
+	  exit(-1);
+  }
 
   std::string filterParameterFile;
   if(nh_.getParam("filterParameterFile", filterParameterFile))
@@ -75,6 +81,7 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh) :
 
   resetService_ = nh_.advertiseService("reset", &FilterInterface_RCARS::resetServiceCallback, this);
   saveWorkspaceService_ = nh_.advertiseService("saveWorkspace", &FilterInterface_RCARS::saveWorkspaceCallback, this);
+  filterStatusService_ = nh_.advertiseService("getFilterStatus", &FilterInterface_RCARS::getFilterStatusCallback, this);
 }
 
 
@@ -270,6 +277,13 @@ bool FilterInterface_RCARS::resetServiceCallback(std_srvs::Empty::Request& reque
 bool FilterInterface_RCARS::saveWorkspaceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response)
 {
 	saveWorkspace();
+	return true;
+}
+
+bool FilterInterface_RCARS::getFilterStatusCallback(rcars_estimator::FilterStatus::Request& request, rcars_estimator::FilterStatus::Response& response)
+{
+	response.currentFilterTime = ros::Time(safe_.t_);
+	response.timeSinceLastUpdate = ros::Time(safe_.state_.template get<mtState::_aux>().timeSinceLastValidUpdate_);
 	return true;
 }
 

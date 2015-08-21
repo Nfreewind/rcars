@@ -46,6 +46,7 @@
 #include <geometry_msgs/PoseArray.h>
 #include <rcars_detector/TagArray.h>
 #include <rcars_detector/TagPoses.h>
+#include <rcars_estimator/FilterStatus.h>
 
 class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>{
  public:
@@ -60,7 +61,7 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
   /*!
    * Constructor.
    */
-  FilterInterface_RCARS(ros::NodeHandle& nh);
+  FilterInterface_RCARS(ros::NodeHandle& nh, ros::NodeHandle& nhRCARS);
 
   /*!
    * Initialize using a given IMU measurement.
@@ -81,6 +82,11 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
    * Callback for service that resets the filter
    */
   bool resetServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+
+  /*!
+   * Callback for service that informs about the filter status
+   */
+  bool getFilterStatusCallback(rcars_estimator::FilterStatus::Request& request, rcars_estimator::FilterStatus::Response& response);
 
   /*!
    * Callback for IMU ros messages.
@@ -215,6 +221,7 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
 
   ros::ServiceServer resetService_;
   ros::ServiceServer saveWorkspaceService_;
+  ros::ServiceServer filterStatusService_;
 };
 
 #endif /* FilterInterface_RCARS_HPP_ */

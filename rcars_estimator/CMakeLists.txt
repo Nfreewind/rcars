@@ -15,6 +15,7 @@ find_package(catkin REQUIRED
     rcars_detector
 	tf
 	cmake_modules
+	message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -60,11 +61,11 @@ find_package(kindr REQUIRED)
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
+add_service_files(
+  FILES
+  FilterStatus.srv
 #   Service2.srv
-# )
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -74,10 +75,10 @@ find_package(kindr REQUIRED)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
+generate_messages(
 #   DEPENDENCIES
 #   std_msgs  # Or other packages containing msgs
-# )
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -121,7 +122,7 @@ add_executable(rcars_test src/rcars_test.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(rcars_estimator_node rcars_estimator_generate_messages_cpp)
+add_dependencies(rcars_estimator_node rcars_estimator_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(rcars_estimator_node

@@ -183,7 +183,7 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
    */
   bool verbose_;
   TagUpdate(){
-    tagSize_ = 0.1; // TODO: register
+    tagSize_ = 0.15;
     computeTagCorners();
     CameraMatrix_.setIdentity();
     for(int i=0;i<8;i++){
@@ -196,7 +196,7 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
     doubleRegister_.removeScalarByStr("beta");
     doubleRegister_.removeScalarByStr("kappa");
     doubleRegister_.removeScalarByStr("updateVecNormTermination");
-    doubleRegister_.registerScalar("tagSize",tagSize_);
+    //doubleRegister_.registerScalar("tagSize",tagSize_);
     verbose_ = false;
   };
   ~TagUpdate(){};

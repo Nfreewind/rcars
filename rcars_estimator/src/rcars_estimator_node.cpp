@@ -40,21 +40,22 @@ int main(int argc, char *argv[]){
 
   // Ros initialization and ros node handle
   ros::init(argc, argv, "estimator");
-  ros::NodeHandle n("~");
+  ros::NodeHandle nhRcars;
+  ros::NodeHandle nh("~");
   ROS_INFO("Launching RCARS estimator. Will be waiting for camera_info afterwards.");
 
   // wait for parameters to be loaded
   ros::Duration(2.0).sleep();
 
   // Instance of filterInterface
-  std::unique_ptr<FilterInterface_RCARS> mpFilterInterface(new FilterInterface_RCARS(n));
+  std::unique_ptr<FilterInterface_RCARS> mpFilterInterface(new FilterInterface_RCARS(nh, nhRcars));
 
   // Spin
   ros::spin();
 
   // Save workspace
   bool saveWorkspace = false;
-  n.param<bool>("autosaveWorkspace", saveWorkspace, saveWorkspace);
+  nh.param<bool>("autosaveWorkspace", saveWorkspace, saveWorkspace);
 
   if (saveWorkspace)
   {
