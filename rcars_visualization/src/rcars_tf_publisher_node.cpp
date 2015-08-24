@@ -268,8 +268,13 @@ int main(int argc, char **argv)
 	ros::param::param<std::string>("~frame_rcars", frame_rcars, "");
 	ros::param::param<std::string>("~frame_align", frame_align, "");
 
+	if(!do_align_frames) {
+		ROS_WARN("Align workspace set to false. No frame aligment will be performed.");
+	}
+
 	if((frame_rcars.empty() || frame_align.empty()) && do_align_frames) {
-		ROS_ERROR("trying to align frames but got empty string for one or both frame IDs. Alignment will probably fail.");
+		ROS_WARN("trying to align frames but got empty string for one or both frame IDs. Setting alignment to false");
+		do_align_frames = false;
 	}
 	message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> poseSub(nh, "estimator/filterPoseSafe", 2);
 	message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> extrinsicsSub(nh, "estimator/filterExtrinsics", 2);
