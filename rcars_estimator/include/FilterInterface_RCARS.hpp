@@ -40,9 +40,9 @@
 #include <std_srvs/Empty.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/CameraInfo.h>
-#include <geometry_msgs/PoseWithCovarianceStamped.h>
-#include <geometry_msgs/TwistWithCovarianceStamped.h>
+#include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/PoseArray.h>
 #include <rcars_detector/TagArray.h>
 #include <rcars_detector/TagPoses.h>
@@ -212,11 +212,9 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
   ros::Subscriber subImu_;
   ros::Subscriber subTags_;
   ros::Subscriber subCameraInfo_;
-  ros::Publisher pubPose_;
   ros::Publisher pubTagArrayCameraFrame_;
   ros::Publisher pubTagArrayInertialFrame_;
-  ros::Publisher pubPoseSafe_;
-  ros::Publisher pubTwistSafe_;
+  ros::Publisher pubPose_;
   ros::Publisher pubExtrinsics_;
 
   ros::ServiceServer resetService_;

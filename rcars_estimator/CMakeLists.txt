@@ -11,6 +11,7 @@ find_package(catkin REQUIRED
     roscpp
     roslib
     sensor_msgs
+    nav_msgs
     std_srvs
     rcars_detector
 	tf

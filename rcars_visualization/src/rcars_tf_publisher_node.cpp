@@ -15,6 +15,7 @@
 #include <message_filters/sync_policies/exact_time.h>
 
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <nav_msgs/Odometry.h>
 #include <rcars_detector/TagArray.h>
 
 #include <tf/tf.h>
@@ -92,12 +93,12 @@ void loadWorkspace(ros::NodeHandle& nh)
 	}
 }
 
-void publish_T_IM(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose)
+void publish_T_IM(const nav_msgs::OdometryConstPtr& pose)
 {
 	// Publish the corresponding tf
 	tf::StampedTransform T_IM;
-	T_IM.frame_id_ = "rcars_inertial";
-	T_IM.child_frame_id_ = "rcars_IMU";
+	T_IM.frame_id_ = pose->header.frame_id;
+	T_IM.child_frame_id_ = pose->child_frame_id;
 	T_IM.stamp_ = pose->header.stamp;
 
 	tf::Transform tf;
@@ -234,7 +235,7 @@ void publish_T_WI_AS_EQUAL(const std_msgs::Header& header) {
 	pTransformBroadcaster->sendTransform(T_WI);
 }
 
-void callback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose, const geometry_msgs::PoseWithCovarianceStampedConstPtr& extrinsics, const rcars_detector::TagArrayConstPtr& detectedTags)
+void callback(const nav_msgs::OdometryConstPtr& pose, const geometry_msgs::PoseWithCovarianceStampedConstPtr& extrinsics, const rcars_detector::TagArrayConstPtr& detectedTags)
 {
 	publish_T_IM(pose);
 	publish_T_MV(extrinsics);
@@ -271,11 +272,11 @@ int main(int argc, char **argv)
 	if((frame_rcars.empty() || frame_align.empty()) && do_align_frames) {
 		ROS_ERROR("trying to align frames but got empty string for one or both frame IDs. Alignment will probably fail.");
 	}
-	message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> poseSub(nh, "estimator/filterPoseSafe", 2);
+	message_filters::Subscriber<nav_msgs::Odometry> poseSub(nh, "estimator/filterPose", 2);
 	message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> extrinsicsSub(nh, "estimator/filterExtrinsics", 2);
 	message_filters::Subscriber<rcars_detector::TagArray> tagSub(nh, "estimator/tagsCameraFrame", 2);
 
-	typedef message_filters::sync_policies::ExactTime<geometry_msgs::PoseWithCovarianceStamped, geometry_msgs::PoseWithCovarianceStamped, rcars_detector::TagArray> rcarsStatePublisher;
+	typedef message_filters::sync_policies::ExactTime<nav_msgs::Odometry, geometry_msgs::PoseWithCovarianceStamped, rcars_detector::TagArray> rcarsStatePublisher;
 
 	message_filters::Synchronizer<rcarsStatePublisher> rcarsState(rcarsStatePublisher(10), poseSub, extrinsicsSub, tagSub);
 	rcarsState.registerCallback(boost::bind(&callback, _1, _2, _3));

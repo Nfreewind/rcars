@@ -72,11 +72,9 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh, ros::NodeHandl
   subImu_ = nh_.subscribe("/imu0", 1000, &FilterInterface_RCARS::imuCallback,this);
   subTags_ = nhNonPrivate.subscribe("detector/tags", 10, &FilterInterface_RCARS::visionCallback,this);
   subCameraInfo_ = nh_.subscribe("/cam0/camera_info", 1, &FilterInterface_RCARS::cameraInfoCallback,this);
-  pubPose_ = nh_.advertise<geometry_msgs::PoseStamped>("filterPose", 20);
   pubTagArrayCameraFrame_ = nh_.advertise<rcars_detector::TagArray>("tagsCameraFrame", 20);
   pubTagArrayInertialFrame_ = nh_.advertise<rcars_detector::TagArray>("tagsInertialFrame",20);
-  pubPoseSafe_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterPoseSafe", 20);
-  pubTwistSafe_ = nh_.advertise<geometry_msgs::TwistWithCovarianceStamped>("filterTwistSafe", 20);
+  pubPose_ = nh_.advertise<nav_msgs::Odometry>("filterPose", 20);
   pubExtrinsics_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterExtrinsics", 20);
 
   resetService_ = nh_.advertiseService("reset", &FilterInterface_RCARS::resetServiceCallback, this);
@@ -437,40 +435,43 @@ void FilterInterface_RCARS::updateAndPublish(void){
       Eigen::Matrix<double,12,12> Cov;
       Cov = getOutputCovariance(safe_);
 
+      nav_msgs::Odometry odometry;
+      odometry.header.stamp = ros::Time(safe_.t_);
+      odometry.header.frame_id = "rcars_inertial";
+      odometry.child_frame_id = "rcars_IMU";
+
       // Publish pose
-      geometry_msgs::PoseWithCovarianceStamped msg;
-      msg.pose.pose.position.x = IrIM(0);
-      msg.pose.pose.position.y = IrIM(1);
-      msg.pose.pose.position.z = IrIM(2);
-      msg.pose.pose.orientation.w = qMI.w();
-      msg.pose.pose.orientation.x = qMI.x();
-      msg.pose.pose.orientation.y = qMI.y();
-      msg.pose.pose.orientation.z = qMI.z();
+      geometry_msgs::PoseWithCovariance& msgPose(odometry.pose);
+      msgPose.pose.position.x = IrIM(0);
+      msgPose.pose.position.y = IrIM(1);
+      msgPose.pose.position.z = IrIM(2);
+      msgPose.pose.orientation.w = qMI.w();
+      msgPose.pose.orientation.x = qMI.x();
+      msgPose.pose.orientation.y = qMI.y();
+      msgPose.pose.orientation.z = qMI.z();
       unsigned int indexArray[6] = {0,1,2,3,4,5};
       for(unsigned int i=0;i<6;i++){
         for(unsigned int j=0;j<6;j++){
-          msg.pose.covariance[6*i+j] = Cov(indexArray[i],indexArray[j]);
+          msgPose.covariance[6*i+j] = Cov(indexArray[i],indexArray[j]);
         }
       }
-      msg.header.stamp = ros::Time(safe_.t_);
-      pubPoseSafe_.publish(msg);
 
         // Publish twist
-      geometry_msgs::TwistWithCovarianceStamped msgTwist;
-      msgTwist.twist.twist.linear.x = MvM(0);
-      msgTwist.twist.twist.linear.y = MvM(1);
-      msgTwist.twist.twist.linear.z = MvM(2);
-      msgTwist.twist.twist.angular.x = MwM(0);
-      msgTwist.twist.twist.angular.y = MwM(1);
-      msgTwist.twist.twist.angular.z = MwM(2);
+      geometry_msgs::TwistWithCovariance& msgTwist(odometry.twist);
+      msgTwist.twist.linear.x = MvM(0);
+      msgTwist.twist.linear.y = MvM(1);
+      msgTwist.twist.linear.z = MvM(2);
+      msgTwist.twist.angular.x = MwM(0);
+      msgTwist.twist.angular.y = MwM(1);
+      msgTwist.twist.angular.z = MwM(2);
       unsigned int indexArrayTwist[6] = {6,7,8,9,10,11};
       for(unsigned int i=0;i<6;i++){
-      for(unsigned int j=0;j<6;j++){
-        msgTwist.twist.covariance[6*i+j] = Cov(indexArrayTwist[i],indexArrayTwist[j]);
+		  for(unsigned int j=0;j<6;j++){
+			msgTwist.covariance[6*i+j] = Cov(indexArrayTwist[i],indexArrayTwist[j]);
+		  }
       }
-      }
-      msgTwist.header.stamp = ros::Time(safe_.t_);
-      pubTwistSafe_.publish(msgTwist);
+
+      pubPose_.publish(odometry);
 
       // Publish extrinsics
       geometry_msgs::PoseWithCovarianceStamped msgExtrinsics;
