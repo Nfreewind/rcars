@@ -262,7 +262,7 @@ int main(int argc, char **argv)
 
 	// setup detector
 	tagDetector = new AprilTags::TagDetector(tagCodes);
-	ros::param::param<double>("~tagSize", tagSize, tagSize);
+	ros::param::param<double>("tagSize", tagSize, tagSize);
 
 	if (nThreads < 0)
 	{

@@ -1,4 +1,6 @@
 <launch>
+ <param name="/rcars/tagSize" value="0.232" />
+
   <node name="visensor_node" pkg="visensor_node" type="visensor_node" />
 
   <node pkg="rosbag" type="record" name="record"

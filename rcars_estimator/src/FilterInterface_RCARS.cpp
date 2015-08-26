@@ -407,8 +407,11 @@ void FilterInterface_RCARS::updateAndPublish(void){
     if(predictionTimeline_.getLastTime(lastImuTime)){
       auto rit = std::get<0>(updateTimelineTuple_).measMap_.rbegin();
       while(rit != std::get<0>(updateTimelineTuple_).measMap_.rend() && rit->first > lastImuTime) ++rit;
-      const double updateTime = rit->first;
-      if(rit != std::get<0>(updateTimelineTuple_).measMap_.rend()) updateSafe(&updateTime);
+      if(rit != std::get<0>(updateTimelineTuple_).measMap_.rend())
+      {
+    	  const double updateTime = rit->first;
+    	  updateSafe(&updateTime);
+      }
     }
 
     // Check if something has changed, if yes publish filter state
