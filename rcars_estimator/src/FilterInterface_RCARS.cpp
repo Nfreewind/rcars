@@ -266,7 +266,7 @@ void FilterInterface_RCARS::saveWorkspace()
 
 bool FilterInterface_RCARS::resetServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response)
 {
-	reset();
+	reset(0);
 	isInitialized_ = false;
 	properVisionDataAvailable_ = false;
 	return true;
@@ -280,6 +280,8 @@ bool FilterInterface_RCARS::saveWorkspaceCallback(std_srvs::Empty::Request& requ
 
 bool FilterInterface_RCARS::getFilterStatusCallback(rcars_estimator::FilterStatus::Request& request, rcars_estimator::FilterStatus::Response& response)
 {
+	response.timeOfLastVisionCbck = timeOfLastVisionCbck_;
+	response.timeOfLastIMUCbck = timeOfLastIMUCbck_;
 	response.currentFilterTime = ros::Time(safe_.t_);
 	response.timeSinceLastUpdate = ros::Time(safe_.state_.template get<mtState::_aux>().timeSinceLastValidUpdate_);
 	return true;
@@ -294,6 +296,8 @@ void FilterInterface_RCARS::initializeFilterWithIMUMeas(const mtPredictionMeas& 
 }
 
 void FilterInterface_RCARS::imuCallback(const sensor_msgs::Imu::ConstPtr& imu_msg) {
+
+  timeOfLastIMUCbck_ = ros::Time::now();
   // Create and fill prediction measurement using the IMU data
   mtPredictionMeas predictionMeas;
   predictionMeas.template get<mtPredictionMeas::_acc>() = Eigen::Vector3d(imu_msg->linear_acceleration.x,imu_msg->linear_acceleration.y,imu_msg->linear_acceleration.z);
@@ -312,8 +316,11 @@ void FilterInterface_RCARS::imuCallback(const sensor_msgs::Imu::ConstPtr& imu_ms
 
 void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::ConstPtr& vision_msg) {
 
+
   // Return if the camera info is not yet available
   if(!camInfoAvailable_) { return; }
+
+  timeOfLastVisionCbck_ = ros::Time::now();
 
   // Do not add measurements if not initialized
   if (!isInitialized_) {

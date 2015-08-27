@@ -220,6 +220,9 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
   ros::ServiceServer resetService_;
   ros::ServiceServer saveWorkspaceService_;
   ros::ServiceServer filterStatusService_;
+
+  ros::Time timeOfLastVisionCbck_;
+  ros::Time timeOfLastIMUCbck_;
 };
 
 #endif /* FilterInterface_RCARS_HPP_ */
