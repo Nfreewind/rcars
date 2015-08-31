@@ -135,10 +135,6 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
   bool properVisionDataAvailable_;
 
   /*!
-   * Time of initialization
-   */
-  double initializationTime_;
-  /*!
    * Flag. True if the filter is initialized.
    */
   bool isInitialized_;

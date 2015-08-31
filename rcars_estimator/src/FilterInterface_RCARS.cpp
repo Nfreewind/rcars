@@ -266,9 +266,30 @@ void FilterInterface_RCARS::saveWorkspace()
 
 bool FilterInterface_RCARS::resetServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response)
 {
+	clean(0);
 	reset(0);
+
+	// clean time lines
+	predictionTimeline_.clear();
+	std::get<0>(updateTimelineTuple_).clear();
+
+	// reset init procedure
 	isInitialized_ = false;
 	properVisionDataAvailable_ = false;
+	camInfoAvailable_ = false;
+
+	// clear view counts
+	for(auto &ent1 : tagViewCount_) {
+		ent1.second = 0;
+	}
+
+	for(auto &ent1 : tagViewOverlapCount_) {
+		ent1.second = 0;
+	}
+
+	timeOfLastVisionCbck_ = ros::Time(0);
+	timeOfLastIMUCbck_ = timeOfLastVisionCbck_;
+
 	return true;
 }
 
