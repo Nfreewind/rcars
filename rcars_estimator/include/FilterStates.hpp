@@ -64,6 +64,7 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
     }
     measIndIterator_ = 0;
     timeSinceLastValidUpdate_ = 0;
+    enableExtrinsicCalibration_ = true;
   };
   ~StateAuxiliary(){};
   /*!
@@ -100,6 +101,18 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
    * Time since last valid update
    */
   double timeSinceLastValidUpdate_;
+  /*!
+   * Whether the extrinsics calibration is enabled
+   */
+  bool enableExtrinsicCalibration_;
+  /*!
+   * Position between IMU and Camera frame expressed in the camera frame. Used when extrinsic calibration disabled.
+   */
+  V3D MrMV_;
+  /*!
+   * Orientation between IMU and Camera frame. Used when extrinsic calibration disabled.
+   */
+  QPD qVM_;
   /*!
    * Searches the dynamic tag ID vector for a specific tag ID and returns the vector index
    * Returns -1 if not found.
@@ -222,6 +235,34 @@ class State: public LWF::State<
   void setCorners(int i, int j, double& x, double& y) const{
     this->template get<_aux>().corners_[i](j*2+0) = x;
     this->template get<_aux>().corners_[i](j*2+1) = y;
+  }
+  V3D& get_MrMV(){
+    if(this->template get <_aux>().enableExtrinsicCalibration_){
+      return this->template get<_vep>();
+    } else {
+      return this->template get<_aux>().MrMV_;
+    }
+  }
+  const V3D& get_MrMV() const{
+    if(this->template get <_aux>().enableExtrinsicCalibration_){
+      return this->template get<_vep>();
+    } else {
+      return this->template get<_aux>().MrMV_;
+    }
+  }
+  QPD& get_qVM(){
+    if(this->template get <_aux>().enableExtrinsicCalibration_){
+      return this->template get<_vea>();
+    } else {
+      return this->template get<_aux>().qVM_;
+    }
+  }
+  const QPD& get_qVM() const{
+    if(this->template get <_aux>().enableExtrinsicCalibration_){
+      return this->template get<_vea>();
+    } else {
+      return this->template get<_aux>().qVM_;
+    }
   }
 };
 /*!
@@ -351,12 +392,12 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
     // qIM_2^T*g = q*(qIM_1^T*g)
     // qIM_3 = qIM_2*q
     // IrIM = IrIT - qIM*(qVM^T*VrVT + MrMV)
-    QPD qIM_2 = qTI.inverted()*qTV*state_.template get<mtState::_vea>();
+    QPD qIM_2 = qTI.inverted()*qTV*state_.get_qVM();
     V3D unitZ(0,0,1);
     QPD q;
     q.setFromVectors(qIM_2.inverseRotate(unitZ),state_.template get<mtState::_att>().inverseRotate(unitZ));
     state_.template get<mtState::_att>() = qIM_2*q;
-    state_.template get<mtState::_pos>() = IrIT - state_.template get<mtState::_att>().rotate(V3D(state_.template get<mtState::_vea>().inverseRotate(VrVT) + state_.template get<mtState::_vep>()));
+    state_.template get<mtState::_pos>() = IrIT - state_.template get<mtState::_att>().rotate(V3D(state_.get_qVM().inverseRotate(VrVT) + state_.get_MrMV()));
   }
 };
 

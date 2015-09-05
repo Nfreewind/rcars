@@ -115,6 +115,7 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
     boolRegister_.registerScalar("Common.verbose",mPrediction_.verbose_);
     boolRegister_.registerScalar("Common.verbose",std::get<0>(mUpdates_).verbose_);
     std::get<0>(mUpdates_).doubleRegister_.registerScalar("maxWaitTime",std::get<0>(updateTimelineTuple_).maxWaitTime_);
+    boolRegister_.registerScalar("Common.enableExtrinsicCalibration",init_.state_.template get<mtState::_aux>().enableExtrinsicCalibration_);
     verbose_ = false;
   }
   /*!
@@ -125,6 +126,8 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
    * Gets called after the info file is read
    */
   void refreshProperties(){
+    init_.state_.template get<mtState::_aux>().MrMV_ = init_.state_.template get<mtState::_vep>();
+    init_.state_.template get<mtState::_aux>().qVM_ = init_.state_.template get<mtState::_vea>();
   };
   /*!
    * Destructor
@@ -205,8 +208,8 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
    * IrIT = IrIM + qIM*(MrMV + qVM^T*(VrVT))
    */
   V3D get_IrIT_dyn(const mtFilterState& filterState, int i){
-    return filterState.state_.template get<mtState::_pos>() + filterState.state_.template get<mtState::_att>().rotate(V3D(filterState.state_.template get<mtState::_vep>()
-        + filterState.state_.template get<mtState::_vea>().inverseRotate(filterState.state_.template get<mtState::_dyp>(i))));
+    return filterState.state_.template get<mtState::_pos>() + filterState.state_.template get<mtState::_att>().rotate(V3D(filterState.state_.get_MrMV()
+        + filterState.state_.get_qVM().inverseRotate(filterState.state_.template get<mtState::_dyp>(i))));
   }
   V3D get_IrIT_dyn_front(int i){
     return get_IrIT_dyn(front_,i);
@@ -220,7 +223,7 @@ class FilterRCARS:public LWF::FilterBase<ImuPrediction<FilterState<nDynamicTags,
    * qTI = qTV*qVM*qIM^T
    */
   QPD get_qTI_dyn(const mtFilterState& filterState, int i){
-    return filterState.state_.template get<mtState::_dya>(i)*filterState.state_.template get<mtState::_vea>()*filterState.state_.template get<mtState::_att>().inverted();
+    return filterState.state_.template get<mtState::_dya>(i)*filterState.state_.get_qVM()*filterState.state_.template get<mtState::_att>().inverted();
   }
   QPD get_qTI_dyn_front(int i){
     return get_qTI_dyn(front_,i);

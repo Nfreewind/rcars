@@ -242,8 +242,8 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
         qTV = state.template get<mtState::_dya>(ind);
       } else if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == STATIC_TAG){
         if(verbose_) std::cout << "Performing update on static tag, ID = " << tagId << std::endl;
-        VrVT = state.template get<mtState::_vea>().rotate(V3D(state.template get<mtState::_att>().inverseRotate(V3D(meas.template get<mtMeas::_aux>().IrIT_[measInd] - state.template get<mtState::_pos>())) - state.template get<mtState::_vep>()));
-        qTV = meas.template get<mtMeas::_aux>().qTI_[measInd]*state.template get<mtState::_att>()*state.template get<mtState::_vea>().inverted();
+        VrVT = state.get_qVM().rotate(V3D(state.template get<mtState::_att>().inverseRotate(V3D(meas.template get<mtMeas::_aux>().IrIT_[measInd] - state.template get<mtState::_pos>())) - state.get_MrMV()));
+        qTV = meas.template get<mtMeas::_aux>().qTI_[measInd]*state.template get<mtState::_att>()*state.get_qVM().inverted();
       } else {
         std::cout << "  \033[31m ERROR: Not valid measurement" << std::endl;
       }
@@ -287,8 +287,8 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
         VrVT = state.template get<mtState::_dyp>(ind);
         qTV = state.template get<mtState::_dya>(ind);
       } else if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == STATIC_TAG){
-        VrVT = state.template get<mtState::_vea>().rotate(V3D(state.template get<mtState::_att>().inverseRotate(V3D(meas.template get<mtMeas::_aux>().IrIT_[measInd] - state.template get<mtState::_pos>())) - state.template get<mtState::_vep>()));
-        qTV = meas.template get<mtMeas::_aux>().qTI_[measInd]*state.template get<mtState::_att>()*state.template get<mtState::_vea>().inverted();
+        VrVT = state.get_qVM().rotate(V3D(state.template get<mtState::_att>().inverseRotate(V3D(meas.template get<mtMeas::_aux>().IrIT_[measInd] - state.template get<mtState::_pos>())) - state.get_MrMV()));
+        qTV = meas.template get<mtMeas::_aux>().qTI_[measInd]*state.template get<mtState::_att>()*state.get_qVM().inverted();
       }
       for(unsigned int j=0;j<4;j++){
         TrTC = TrTC_.col(j);
@@ -311,19 +311,21 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
           F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_dya>(ind)) = J1*M3;
           F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_dya>(ind)) = J2*M3;
         } else if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == STATIC_TAG){
-          M3 = -rot::RotationMatrixPD(state.template get<mtState::_vea>()*state.template get<mtState::_att>().inverted()).matrix();
+          M3 = -rot::RotationMatrixPD(state.get_qVM()*state.template get<mtState::_att>().inverted()).matrix();
           F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_pos>()) = J1*M3;
           F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_pos>()) = J2*M3;
-          M3 = -rot::RotationMatrixPD(state.template get<mtState::_vea>()*state.template get<mtState::_att>().inverted()).matrix()
+          M3 = -rot::RotationMatrixPD(state.get_qVM()*state.template get<mtState::_att>().inverted()).matrix()
               *gSM(meas.template get<mtMeas::_aux>().IrIT_[measInd] + meas.template get<mtMeas::_aux>().qTI_[measInd].inverseRotate(TrTC) - state.template get<mtState::_pos>());
           F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_att>()) = J1*M3;
           F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_att>()) = J2*M3;
-          M3 = gSM(VrVC);
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_vea>()) = J1*M3;
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_vea>()) = J2*M3;
-          M3 = -rot::RotationMatrixPD(state.template get<mtState::_vea>()).matrix();
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_vep>()) = J1*M3;
-          F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_vep>()) = J2*M3;
+          if(state.template get<mtState::_aux>().enableExtrinsicCalibration_){
+            M3 = gSM(VrVC);
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_vea>()) = J1*M3;
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_vea>()) = J2*M3;
+            M3 = -rot::RotationMatrixPD(state.get_qVM()).matrix();
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+0,mtState::template getId<mtState::_vep>()) = J1*M3;
+            F.template block<1,3>(mtInnovation::template getId<mtInnovation::_cor>()+j*2+1,mtState::template getId<mtState::_vep>()) = J2*M3;
+          }
         }
       }
     }

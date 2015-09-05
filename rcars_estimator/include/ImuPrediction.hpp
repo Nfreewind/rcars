@@ -112,8 +112,8 @@ class ImuPrediction: public LWF::Prediction<FILTERSTATE>{
     output.template get<mtState::_vea>() = dQ*state.template get<mtState::_vea>();
 
     // Predict new robocentric tag position
-    const V3D camRor(state.template get<mtState::_vea>().rotate(imuRor));
-    const V3D camVel(state.template get<mtState::_vea>().rotate(V3D(imuRor.cross(state.template get<mtState::_vep>())-state.template get<mtState::_vel>())));
+    const V3D camRor(state.get_qVM().rotate(imuRor));
+    const V3D camVel(state.get_qVM().rotate(V3D(imuRor.cross(state.get_MrMV())-state.template get<mtState::_vel>())));
     const V3D dtCamRor(dt*camRor);
     const V3D dtCamVel(dt*camVel);
 
@@ -157,15 +157,15 @@ class ImuPrediction: public LWF::Prediction<FILTERSTATE>{
     F.template block<3,3>(mtState::template getId<mtState::_vep>(),mtState::template getId<mtState::_vep>()).setIdentity();
     F.template block<3,3>(mtState::template getId<mtState::_vea>(),mtState::template getId<mtState::_vea>()).setIdentity();
 
-    const V3D camRor(state.template get<mtState::_vea>().rotate(imuRor));
-    const V3D camVel(state.template get<mtState::_vea>().rotate(V3D(imuRor.cross(state.template get<mtState::_vep>())-state.template get<mtState::_vel>())));
+    const V3D camRor(state.get_qVM().rotate(imuRor));
+    const V3D camVel(state.get_qVM().rotate(V3D(imuRor.cross(state.get_MrMV())-state.template get<mtState::_vel>())));
 
-    const M3D veaMatrix(MPD(state.template get<mtState::_vea>()).matrix());
+    const M3D veaMatrix(MPD(state.get_qVM()).matrix());
     const M3D veaMatrixDt(veaMatrix*dt);
     const M3D dtveaMatrix(dt*veaMatrix);
     const M3D lmatCamRor(Lmat(-dt*camRor));
-    const M3D gSMvep(gSM(state.template get<mtState::_vep>()));
-    const M3D gSMveaImuRorVepVelDt(gSM(state.template get<mtState::_vea>().rotate(V3D(imuRor.cross(state.template get<mtState::_vep>())-state.template get<mtState::_vel>())))*dt);
+    const M3D gSMvep(gSM(state.get_MrMV()));
+    const M3D gSMveaImuRorVepVelDt(gSM(state.get_qVM().rotate(V3D(imuRor.cross(state.get_MrMV())-state.template get<mtState::_vel>())))*dt);
     const M3D gSMcamRor(gSM(camRor));
     const M3D gSMimuRor(gSM(imuRor));
 
@@ -177,16 +177,18 @@ class ImuPrediction: public LWF::Prediction<FILTERSTATE>{
       F.template block<3,3>(mtState::template getId<mtState::_dyp>(i),mtState::template getId<mtState::_gyb>()) =
           -veaMatrixDt*gSMvep
           -dt*gSM(state.template get<mtState::_dyp>(i))*veaMatrix;
-      F.template block<3,3>(mtState::template getId<mtState::_dyp>(i),mtState::template getId<mtState::_vep>()) =
-          -veaMatrixDt*gSM(imuRor);
-      F.template block<3,3>(mtState::template getId<mtState::_dyp>(i),mtState::template getId<mtState::_vea>()) =
-          -gSMveaImuRorVepVelDt
-          +dt*gSM(state.template get<mtState::_dyp>(i))*gSMcamRor;
+      if(state.template get<mtState::_aux>().enableExtrinsicCalibration_){
+        F.template block<3,3>(mtState::template getId<mtState::_dyp>(i),mtState::template getId<mtState::_vep>()) =
+            -veaMatrixDt*gSM(imuRor);
+        F.template block<3,3>(mtState::template getId<mtState::_dyp>(i),mtState::template getId<mtState::_vea>()) =
+            -gSMveaImuRorVepVelDt
+            +dt*gSM(state.template get<mtState::_dyp>(i))*gSMcamRor;
+        F.template block<3,3>(mtState::template getId<mtState::_dya>(i),mtState::template getId<mtState::_vea>()) =
+            -dyaMatrixDtLmatCamRor*gSMcamRor;
+      }
       F.template block<3,3>(mtState::template getId<mtState::_dya>(i),mtState::template getId<mtState::_dya>(i)).setIdentity();
       F.template block<3,3>(mtState::template getId<mtState::_dya>(i),mtState::template getId<mtState::_gyb>()) =
     	   dyaMatrixDtLmatCamRor*veaMatrix;
-      F.template block<3,3>(mtState::template getId<mtState::_dya>(i),mtState::template getId<mtState::_vea>()) =
-          -dyaMatrixDtLmatCamRor*gSMcamRor;
     }
     for(unsigned int i=0;i<mtState::nHybridTags_;i++){
       F.template block<2,2>(mtState::template getId<mtState::_hya>(i),mtState::template getId<mtState::_hya>(i)).setIdentity();
@@ -212,11 +214,11 @@ class ImuPrediction: public LWF::Prediction<FILTERSTATE>{
     G.template block<3,3>(mtState::template getId<mtState::_vep>(),mtNoise::template getId<mtNoise::_vep>()) = sqrtDtIdentity;
     G.template block<3,3>(mtState::template getId<mtState::_vea>(),mtNoise::template getId<mtNoise::_vea>()) = sqrtDtIdentity;
 
-    const V3D camRor(state.template get<mtState::_vea>().rotate(imuRor));
-    const M3D veaMatrix(MPD(state.template get<mtState::_vea>()).matrix());
-    const M3D veaMatrixSqrtDt(MPD(state.template get<mtState::_vea>()).matrix()*sqrt_dt);
+    const V3D camRor(state.get_qVM().rotate(imuRor));
+    const M3D veaMatrix(MPD(state.get_qVM()).matrix());
+    const M3D veaMatrixSqrtDt(MPD(state.get_qVM()).matrix()*sqrt_dt);
     const M3D lmatCamRor(Lmat(-dt*camRor));
-    const M3D gSMvep(gSM(state.template get<mtState::_vep>()));
+    const M3D gSMvep(gSM(state.get_MrMV()));
     const M3D veaMatrixgSMvepSqrtDt(veaMatrixSqrtDt*gSMvep);
 
     for(unsigned int i=0;i<mtState::nDynamicTags_;i++){
