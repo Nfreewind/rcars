@@ -1,6 +1,7 @@
 Common
 {
 	verbose 0
+	enableExtrinsicCalibration 1
 }
 Init
 {

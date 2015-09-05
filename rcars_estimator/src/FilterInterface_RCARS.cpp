@@ -452,8 +452,8 @@ void FilterInterface_RCARS::updateAndPublish(void){
 
       // Verbose
       if(verbose_) std::cout << "Calibration:" << std::endl;
-      if(verbose_) std::cout << "  MrMV: " << safe_.state_.template get<mtState::_vep>().transpose() << std::endl;
-      if(verbose_) std::cout << "  qVM: " << safe_.state_.template get<mtState::_vea>() << std::endl;
+      if(verbose_) std::cout << "  MrMV: " << safe_.state_.get_MrMV().transpose() << std::endl;
+      if(verbose_) std::cout << "  qVM: " << safe_.state_.get_qVM() << std::endl;
       if(verbose_) std::cout << "  Time since last valid measurement: " << safe_.state_.template get<mtState::_aux>().timeSinceLastValidUpdate_ << std::endl;
 
       // Publish further tag poses
@@ -511,8 +511,8 @@ void FilterInterface_RCARS::updateAndPublish(void){
 
       // Publish extrinsics
       geometry_msgs::PoseWithCovarianceStamped msgExtrinsics;
-      const V3D& MrMV = safe_.state_.template get<mtState::_vep>();
-      const QPD& qVM = safe_.state_.template get<mtState::_vea>();
+      const V3D& MrMV = safe_.state_.get_MrMV();
+      const QPD& qVM = safe_.state_.get_qVM();
       msgExtrinsics.pose.pose.position.x = MrMV(0);
       msgExtrinsics.pose.pose.position.y = MrMV(1);
       msgExtrinsics.pose.pose.position.z = MrMV(2);
