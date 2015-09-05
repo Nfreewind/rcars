@@ -320,6 +320,17 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
     cov_.template block<3,3>(mtState::template getId<mtState::_dya>(newInd),mtState::template getId<mtState::_dyp>(newInd)) = dynamicTagInitCov_.template block<3,3>(3,0);
     cov_.template block<3,3>(mtState::template getId<mtState::_dya>(newInd),mtState::template getId<mtState::_dya>(newInd)) = dynamicTagInitCov_.template block<3,3>(3,3);
   }
+
+  /*!
+   * Reset the tag orientation and orientation covariance for a specific tag. This is used when a tag has been wrongly initialized.
+   */
+  void resetTagOrientationAndCovariance(int tagIndex, const rot::RotationQuaternionPD& qTV){
+	state_.template get<mtState::_dya>(tagIndex) = qTV;
+    cov_.template block<mtState::D_,3>(0,mtState::template getId<mtState::_dya>(tagIndex)).setZero();
+    cov_.template block<3,mtState::D_>(mtState::template getId<mtState::_dya>(tagIndex),0).setZero();
+    cov_.template block<3,3>(mtState::template getId<mtState::_dya>(tagIndex),mtState::template getId<mtState::_dya>(tagIndex)) = dynamicTagInitCov_.template block<3,3>(3,3);
+  }
+
   /*!
    * Adds a new dynamic tag to the filter at index newInd and with tag ID tagId.
    * VrVT and qTV are used for initializing the tag position.

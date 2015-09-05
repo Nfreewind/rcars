@@ -125,14 +125,14 @@ void publish_T_MV(const geometry_msgs::PoseWithCovarianceStampedConstPtr& pose)
 	pTransformBroadcaster->sendTransform(T_MV);
 }
 
-void publish_T_VT(const rcars_detector::TagArrayConstPtr& detectedTags)
+void publish_T_VT(const rcars_detector::TagArrayConstPtr& detectedTags, const std::string& prefix)
 {
 	for (size_t i=0; i<detectedTags->tags.size(); i++)
 	{
 		// Publish the corresponding tf
 		tf::StampedTransform T_VT;
 		T_VT.frame_id_ = "rcars_camera";
-		T_VT.child_frame_id_ = "rcars_tag" + std::to_string(detectedTags->tags[i].id) + "_dyn";
+		T_VT.child_frame_id_ = "rcars_tag" + std::to_string(detectedTags->tags[i].id) + prefix;
 		T_VT.stamp_ = detectedTags->header.stamp;
 
 		tf::Transform tf;
@@ -239,7 +239,7 @@ void callback(const nav_msgs::OdometryConstPtr& pose, const geometry_msgs::PoseW
 {
 	publish_T_IM(pose);
 	publish_T_MV(extrinsics);
-	publish_T_VT(detectedTags);
+	publish_T_VT(detectedTags, "_dyn");
 	publish_static_tags(detectedTags->header);
 
 	publish_T_WW(pose->header);
@@ -250,6 +250,11 @@ void callback(const nav_msgs::OdometryConstPtr& pose, const geometry_msgs::PoseW
 	else {
 		publish_T_WI_AS_EQUAL(pose->header);
 	}
+}
+
+void detectorCallback(const rcars_detector::TagArrayConstPtr& tags)
+{
+	publish_T_VT(tags, "_detector");
 }
 
 int main(int argc, char **argv)
@@ -280,6 +285,8 @@ int main(int argc, char **argv)
 	message_filters::Subscriber<nav_msgs::Odometry> poseSub(nh, "estimator/filterPose", 2);
 	message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> extrinsicsSub(nh, "estimator/filterExtrinsics", 2);
 	message_filters::Subscriber<rcars_detector::TagArray> tagSub(nh, "estimator/tagsCameraFrame", 2);
+
+	ros::Subscriber sub = nh.subscribe("detector/tags", 2, detectorCallback);
 
 	typedef message_filters::sync_policies::ExactTime<nav_msgs::Odometry, geometry_msgs::PoseWithCovarianceStamped, rcars_detector::TagArray> rcarsStatePublisher;
 

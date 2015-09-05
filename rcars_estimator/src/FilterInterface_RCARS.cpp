@@ -43,6 +43,8 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh, ros::NodeHandl
   nh_.param<int>("calibrationViewCountThreshold", calibrationViewCountThreshold_, 10);
   nh_.param<bool>("overwriteWorkspace", overwriteWorkspace_, false);
   nh_.param<bool>("initializeWithStaticTagOnly", initializeWithStaticTagOnly_, false);
+  nh_.param<double>("tagOrientationThreshold", tagDisparityThreshold_, 30.0/180.0*3.14);
+  nh_.param<int>("tagOrientationErrorCountThreshold", orientationErrorCountThreshold_, 3);
 
   if(!nhRCARS.getParam("tagSize", std::get<0>(mUpdates_).tagSize_))
   {
@@ -88,42 +90,8 @@ void FilterInterface_RCARS::loadWorkspace()
 	std::vector<int> calibratedTags;
 	if (!nh_.getParam("workspace/calibratedTags", calibratedTags))
 	{
-		ROS_FATAL("No calibrated tags found. Creating empty workspace.");
+		ROS_WARN("No calibrated tags found. Creating empty workspace.");
 		return;
-	}
-
-	Eigen::Vector3d WrWT;
-	Eigen::Quaterniond qTW;
-
-	if (nh_.getParam("workspace/referenceTagId", referenceTagId_))
-	{
-		if (std::find(calibratedTags.begin(), calibratedTags.end(), referenceTagId_) == calibratedTags.end() )
-		{
-			ROS_FATAL("WARNING: Reference tag with id %d is not listed as a calibrated tag.", referenceTagId_);
-		}
-
-		if(
-			nh_.getParam("workspace/T_workspace_refTag/position/x", WrWT(0)) &&
-			nh_.getParam("workspace/T_workspace_refTag/position/y", WrWT(1)) &&
-			nh_.getParam("workspace/T_workspace_refTag/position/z", WrWT(2)) &&
-			nh_.getParam("workspace/T_workspace_refTag/orientation/w", qTW.w()) &&
-			nh_.getParam("workspace/T_workspace_refTag/orientation/x", qTW.x()) &&
-			nh_.getParam("workspace/T_workspace_refTag/orientation/x", qTW.y()) &&
-			nh_.getParam("workspace/T_workspace_refTag/orientation/y", qTW.z())
-		)
-		{
-			ROS_INFO("Found reference Tag and workspace to reference tag transformation.");
-			WrWT_ = WrWT;
-			qTW_ = rot::RotationQuaternionPD(qTW);
-		} else
-		{
-			ROS_FATAL("Found reference Tag ID but no reference tag transformation. Will assume identity");
-			WrWT_.setZero();
-			qTW_.setIdentity();
-		}
-	} else
-	{
-		ROS_INFO("No workspace reference tag ID found. Cannot give workspace information.");
 	}
 
 	for (size_t i=0; i<calibratedTags.size(); i++)
@@ -287,6 +255,10 @@ bool FilterInterface_RCARS::resetServiceCallback(std_srvs::Empty::Request& reque
 		ent1.second = 0;
 	}
 
+	for (auto &ent1 : orientationErrorCount_) {
+		ent1.second = 0;
+	}
+
 	timeOfLastVisionCbck_ = ros::Time(0);
 	timeOfLastIMUCbck_ = timeOfLastVisionCbck_;
 
@@ -393,14 +365,47 @@ void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::Const
 
     // Copy the estimated pose from the detector
     const geometry_msgs::Pose& pose = vision_msg->tags[i].pose;
+    rot::RotationQuaternionPD tagOrientationDetector(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
     updateMeas.template get<mtUpdateMeas::_aux>().tagPos_[i] = Eigen::Vector3d(pose.position.x, pose.position.y, pose.position.z);
-    updateMeas.template get<mtUpdateMeas::_aux>().tagAtt_[i] = rot::RotationQuaternionPD(pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+    updateMeas.template get<mtUpdateMeas::_aux>().tagAtt_[i] = tagOrientationDetector;
 
     // if we have a static tag, we copy the position and orientation data
     if (updateMeas.template get<mtUpdateMeas::_aux>().tagTypes_[i] == rcars::STATIC_TAG)
     {
     	updateMeas.template get<mtUpdateMeas::_aux>().IrIT_[i] = IrIT_[tagId];
     	updateMeas.template get<mtUpdateMeas::_aux>().qTI_[i] = qTI_[tagId];
+    }
+
+    // get tag index
+    int filterTagIndex = -1;
+    for (size_t j=0; j<mtState::nDynamicTags_; j++)
+    {
+    	if (tagId == safe_.state_.template get<mtState::_aux>().dynamicIds_[j])
+    	{
+    		filterTagIndex = j;
+    		break;
+    	}
+    }
+
+    // if tag initialized
+    if (filterTagIndex != -1)
+    {
+    	// check predicted orientation and measured orientation
+    	double disparityAngle = tagOrientationDetector.getDisparityAngle(get_qTV_dyn_safe(filterTagIndex));
+    	if (disparityAngle > tagDisparityThreshold_)
+		{
+    		orientationErrorCount_[tagId]++;
+
+    		if (orientationErrorCount_[tagId] >= orientationErrorCountThreshold_)
+    		{
+    			std::cout << "Orientation outlier detected, disparity " << disparityAngle <<". Resetting orientation for tag "<<tagId<<std::endl;
+    			safe_.resetTagOrientationAndCovariance(filterTagIndex, tagOrientationDetector);
+    			orientationErrorCount_[tagId] = 0.0;
+    		}
+		} else
+		{
+			orientationErrorCount_[tagId] = 0;
+		}
     }
   }
 
