@@ -395,6 +395,9 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
    * This method is executed after an update.
    */
   void postProcess(mtFilterState& filterState, const mtMeas& meas, const mtOutlierDetection& outlierDetection, bool& isFinished){
+
+	if (isFinished) return;
+
     int& measInd = filterState.state_.template get<mtState::_aux>().measIndIterator_;
 
     const int tagId = meas.template get<mtMeas::_aux>().tagIds_[measInd];
@@ -404,7 +407,7 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
         if(outlierDetection.isOutlier(0)){
           filterState.state_.template get<mtState::_aux>().nOutliers_[ind]++;
           if (filterState.state_.template get<mtState::_aux>().nOutliers_[ind] >= outlierCountThreshold_){
-            if(verbose_) std::cout << "Orientation outlier detected. Mahalanobis distance: " << outlierDetection.getMahalDistance(0) <<". Resetting orientation for tag "<<tagId<<std::endl;
+            std::cout << "\033[33m WARNING: Orientation outlier detected. Mahalanobis distance: " << outlierDetection.getMahalDistance(0) <<". Resetting orientation for tag "<<tagId<<std::endl;
             filterState.resetTagOrientationAndCovariance(ind, meas.template get<mtMeas::_aux>().tagAtt_[measInd]);
             filterState.state_.template get<mtState::_aux>().nOutliers_[ind] = 0;
           }
