@@ -181,16 +181,6 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
            Eigen::aligned_allocator<std::pair<const int, rot::RotationQuaternionPD> > > qTI_;
 
   /*!
-   * Counter how many subsequent orientation errors occured for each tag
-   */
-  std::map<int, size_t> orientationErrorCount_;
-
-  /*!
-   * Threshold how many subsequent orientation errors we must measure before resetting the tag orientation
-   */
-  int orientationErrorCountThreshold_;
-
-  /*!
    * Flag if workspace gets overwritten (or just updated)
    */
   bool overwriteWorkspace_;
@@ -199,12 +189,6 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
    * Should RCARS wait for the measurement of a static tag before initializing
    */
   bool initializeWithStaticTagOnly_;
-
-  /*!
-   * Threshold between estimated orientation and orientation measured by the detector
-   * If this value is exceeded, the tag orientation will be reset
-   */
-  double tagDisparityThreshold_;
 
   /*!
    * Ros publishers and subscribers

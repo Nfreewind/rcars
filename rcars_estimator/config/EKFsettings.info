@@ -63,6 +63,7 @@ Update0
     initTagPosCov 10.0
     initTagAttCov 1.0
     maxWaitTime 0.5
+    outlierCountThreshold 3
 }
 Prediction
 {

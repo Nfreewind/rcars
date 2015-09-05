@@ -182,6 +182,10 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
    * Verbose flag
    */
   bool verbose_;
+  /*!
+   * Threshold how many subsequent outliers we must encounter before resetting the tag orientation
+   */
+  int outlierCountThreshold_;
   TagUpdate(){
     tagSize_ = 0.15;
     computeTagCorners();
@@ -196,7 +200,7 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
     doubleRegister_.removeScalarByStr("beta");
     doubleRegister_.removeScalarByStr("kappa");
     doubleRegister_.removeScalarByStr("updateVecNormTermination");
-    //doubleRegister_.registerScalar("tagSize",tagSize_);
+    intRegister_.registerScalar("outlierCountThreshold",outlierCountThreshold_);
     verbose_ = false;
   };
   ~TagUpdate(){};
@@ -391,10 +395,30 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
    * This method is executed after an update.
    */
   void postProcess(mtFilterState& filterState, const mtMeas& meas, const mtOutlierDetection& outlierDetection, bool& isFinished){
-    filterState.state_.template get<mtState::_aux>().measIndIterator_++;
+    int& measInd = filterState.state_.template get<mtState::_aux>().measIndIterator_;
+
+    const int tagId = meas.template get<mtMeas::_aux>().tagIds_[measInd];
+    if(tagId != -1){
+      if(meas.template get<mtMeas::_aux>().tagTypes_[measInd] == DYNAMIC_TAG){
+        const int ind = filterState.state_.template get<mtState::_aux>().getDynamicIndFromTagId(tagId);
+        if(outlierDetection.isOutlier(0)){
+          filterState.state_.template get<mtState::_aux>().nOutliers_[ind]++;
+          if (filterState.state_.template get<mtState::_aux>().nOutliers_[ind] >= outlierCountThreshold_){
+            if(verbose_) std::cout << "Orientation outlier detected. Mahalanobis distance: " << outlierDetection.getMahalDistance(0) <<". Resetting orientation for tag "<<tagId<<std::endl;
+            filterState.resetTagOrientationAndCovariance(ind, meas.template get<mtMeas::_aux>().tagAtt_[measInd]);
+            filterState.state_.template get<mtState::_aux>().nOutliers_[ind] = 0;
+          }
+        } else {
+          filterState.state_.template get<mtState::_aux>().nOutliers_[ind] = 0;
+        }
+      }
+    }
+
     if(verbose_ && outlierDetection.isOutlier(0)){
       std::cout << "  \033[33m WARNING: outlier detected! \033[0m" << std::endl;
     }
+
+    measInd++;
   };
 };
 

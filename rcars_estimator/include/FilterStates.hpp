@@ -58,6 +58,7 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
     for(unsigned int i=0;i<nDynamicTags;i++){
       dynamicIds_[i] = -1;
       corners_[i].setZero();
+      nOutliers_[i] = 0;
     }
     for(unsigned int i=0;i<nHybridTags;i++){
       hybridIds_[i] = -1;
@@ -101,6 +102,10 @@ class StateAuxiliary: public LWF::AuxiliaryBase<StateAuxiliary<nDynamicTags,nHyb
    * Time since last valid update
    */
   double timeSinceLastValidUpdate_;
+  /*!
+   * Number of subsequent outliers
+   */
+  int nOutliers_[nDynamicTags];
   /*!
    * Whether the extrinsics calibration is enabled
    */

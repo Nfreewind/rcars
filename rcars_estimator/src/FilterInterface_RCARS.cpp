@@ -43,8 +43,6 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh, ros::NodeHandl
   nh_.param<int>("calibrationViewCountThreshold", calibrationViewCountThreshold_, 10);
   nh_.param<bool>("overwriteWorkspace", overwriteWorkspace_, false);
   nh_.param<bool>("initializeWithStaticTagOnly", initializeWithStaticTagOnly_, false);
-  nh_.param<double>("tagOrientationThreshold", tagDisparityThreshold_, 30.0/180.0*3.14);
-  nh_.param<int>("tagOrientationErrorCountThreshold", orientationErrorCountThreshold_, 3);
 
   if(!nhRCARS.getParam("tagSize", std::get<0>(mUpdates_).tagSize_))
   {
@@ -255,10 +253,6 @@ bool FilterInterface_RCARS::resetServiceCallback(std_srvs::Empty::Request& reque
 		ent1.second = 0;
 	}
 
-	for (auto &ent1 : orientationErrorCount_) {
-		ent1.second = 0;
-	}
-
 	timeOfLastVisionCbck_ = ros::Time(0);
 	timeOfLastIMUCbck_ = timeOfLastVisionCbck_;
 
@@ -374,38 +368,6 @@ void FilterInterface_RCARS::visionCallback(const rcars_detector::TagArray::Const
     {
     	updateMeas.template get<mtUpdateMeas::_aux>().IrIT_[i] = IrIT_[tagId];
     	updateMeas.template get<mtUpdateMeas::_aux>().qTI_[i] = qTI_[tagId];
-    }
-
-    // get tag index
-    int filterTagIndex = -1;
-    for (size_t j=0; j<mtState::nDynamicTags_; j++)
-    {
-    	if (tagId == safe_.state_.template get<mtState::_aux>().dynamicIds_[j])
-    	{
-    		filterTagIndex = j;
-    		break;
-    	}
-    }
-
-    // if tag initialized
-    if (filterTagIndex != -1)
-    {
-    	// check predicted orientation and measured orientation
-    	double disparityAngle = tagOrientationDetector.getDisparityAngle(get_qTV_dyn_safe(filterTagIndex));
-    	if (disparityAngle > tagDisparityThreshold_)
-		{
-    		orientationErrorCount_[tagId]++;
-
-    		if (orientationErrorCount_[tagId] >= orientationErrorCountThreshold_)
-    		{
-    			std::cout << "Orientation outlier detected, disparity " << disparityAngle <<". Resetting orientation for tag "<<tagId<<std::endl;
-    			safe_.resetTagOrientationAndCovariance(filterTagIndex, tagOrientationDetector);
-    			orientationErrorCount_[tagId] = 0.0;
-    		}
-		} else
-		{
-			orientationErrorCount_[tagId] = 0;
-		}
     }
   }
 
