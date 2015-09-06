@@ -32,7 +32,7 @@
 /*!
  * Number of dynamic tags (full 6DOF pose gets estimated), minimum 1
  */
-const int nDynamicTags = 10;
+const int nDynamicTags = 35;
 /*!
  * Number of hybrid tags (only gravity alignment gets estimated), minimum 1
  */

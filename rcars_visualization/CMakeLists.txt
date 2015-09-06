@@ -37,3 +37,6 @@ target_link_libraries(rcars_image_visualization_node ${OpenCV_LIBRARIES} ${catki
 
 add_executable(rcars_tf_publisher_node src/rcars_tf_publisher_node.cpp)
 target_link_libraries(rcars_tf_publisher_node ${catkin_LIBRARIES})
+
+add_executable(rcars_path_visualization_node src/rcars_path_visualization_node.cpp)
+target_link_libraries(rcars_path_visualization_node ${catkin_LIBRARIES})

@@ -3,8 +3,8 @@
   
   <node name="tf_publisher" ns="rcars" pkg="rcars_visualization" type="rcars_tf_publisher_node" output="screen"> 
     <param name="align_workspace" value="false"/>
-  	<param name="frame_rcars" value="" />
-  	<param name="frame_align" value="" />
+  	<param name="frame_rcars" value="rcars_tag54_dyn" />
+  	<param name="frame_align" value="world" />
   </node>
   
   <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find rcars_estimator)/config/debug.rviz" />
