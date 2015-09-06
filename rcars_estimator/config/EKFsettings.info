@@ -90,13 +90,13 @@ Prediction
         vea_0 1e-6
         vea_1 1e-6
         vea_2 1e-6
-        dyp_0 1e-6
-        dyp_1 1e-6
-        dyp_2 1e-6
-        dya_0 1e-6
-        dya_1 1e-6
-        dya_2 1e-6
-        hya_0 1e-6
-        hya_1 1e-6
+        dyp_0 1e-4
+        dyp_1 1e-4
+        dyp_2 1e-4
+        dya_0 1e-4
+        dya_1 1e-4
+        dya_2 1e-4
+        hya_0 1e-4
+        hya_1 1e-4
     }
 }
