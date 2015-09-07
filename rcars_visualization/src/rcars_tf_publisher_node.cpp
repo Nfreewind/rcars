@@ -25,9 +25,14 @@
 std::shared_ptr<tf::TransformBroadcaster> pTransformBroadcaster;
 std::shared_ptr<tf::TransformListener> pListener;
 
-bool do_align_frames = false;
+bool doAlignFrames = false;
+bool useExternalCalibration = false;
 std::string frame_rcars;
 std::string frame_align;
+
+tf::Vector3 WrWT;  // position of tag center expressed in world coordinates
+tf::Quaternion qWT;  // orientation of tag with respect to the world
+
 
 struct StaticTag
 {
@@ -193,9 +198,16 @@ void publish_T_WI(const std_msgs::Header& header) {
 	tf::StampedTransform T_WI;
 	//get T_WA1 and T_A2I
 	try {
-		pListener->waitForTransform("/rcars_workspace", "/"+frame_align, header.stamp, ros::Duration(1.0));
+		//we only have to wait for transform if calibration is done externally, otherwise we publish the
+		//desired transformation BEFORE this calls so NO waiting is required!
+		if(!useExternalCalibration) {
+			pListener->waitForTransform("/rcars_workspace", "/"+frame_align, header.stamp, ros::Duration(1.0));
+		}
 		pListener->lookupTransform("/rcars_workspace", "/"+frame_align, header.stamp, T_WA1);
-		pListener->waitForTransform("/"+frame_rcars, "/rcars_inertial", header.stamp, ros::Duration(1.0));
+
+		if(!useExternalCalibration) {
+			pListener->waitForTransform("/"+frame_rcars, "/rcars_inertial", header.stamp, ros::Duration(1.0));
+		}
 		pListener->lookupTransform("/"+frame_rcars, "/rcars_inertial", header.stamp, T_A2I);
 	}
 	catch (tf::TransformException &ex) {
@@ -235,6 +247,28 @@ void publish_T_WI_AS_EQUAL(const std_msgs::Header& header) {
 	pTransformBroadcaster->sendTransform(T_WI);
 }
 
+/**
+ *	\brief This function publishes where the reference tag is in the workspace
+ *	\param header of the published new rcars data, used for timing information only.
+ * 	\return void
+ */
+void publish_T_refTag(const std_msgs::Header& header) {
+	//we publish where the reference tag is (later, we will align it with the corresponding tag).
+	tf::StampedTransform T_WT;
+	T_WT.frame_id_ = "rcars_workspace";
+	T_WT.child_frame_id_ = frame_align;
+	T_WT.stamp_ = header.stamp;
+
+	//data from position estimator config file
+	tf::Transform tf;
+	tf.setOrigin(WrWT);
+	tf.setRotation(qWT);
+	T_WT.setData(tf);
+
+	//publish the data
+	pTransformBroadcaster->sendTransform(T_WT);
+}
+
 void callback(const nav_msgs::OdometryConstPtr& pose, const geometry_msgs::PoseWithCovarianceStampedConstPtr& extrinsics, const rcars_detector::TagArrayConstPtr& detectedTags)
 {
 	publish_T_IM(pose);
@@ -244,7 +278,10 @@ void callback(const nav_msgs::OdometryConstPtr& pose, const geometry_msgs::PoseW
 
 	publish_T_WW(pose->header);
 	//check if frame wants to be aligned.
-	if(do_align_frames) {
+	if(doAlignFrames) {
+		if(!useExternalCalibration) {
+			publish_T_refTag(pose->header);
+		}
 		publish_T_WI(pose->header);
 	}
 	else {
@@ -270,17 +307,47 @@ int main(int argc, char **argv)
 	pTransformBroadcaster = std::make_shared<tf::TransformBroadcaster>();
 	pListener = std::make_shared<tf::TransformListener>();
 
-	ros::param::param<bool>("~align_workspace", do_align_frames, false);
+	ros::param::param<bool>("~align_workspace", doAlignFrames, false);
 	ros::param::param<std::string>("~frame_rcars", frame_rcars, "");
 	ros::param::param<std::string>("~frame_align", frame_align, "");
 
-	if(!do_align_frames) {
+	if(!doAlignFrames) {
 		ROS_WARN("Align workspace set to false. No frame aligment will be performed.");
 	}
 
-	if((frame_rcars.empty() || frame_align.empty()) && do_align_frames) {
+	if((frame_rcars.empty() || frame_align.empty()) && doAlignFrames) {
 		ROS_WARN("trying to align frames but got empty string for one or both frame IDs. Setting alignment to false");
-		do_align_frames = false;
+		doAlignFrames = false;
+	}
+	//parameters for WrWT Vector (vector from World coordniate frame to Tag coordinate frame, expressed in World coordinates)
+	double WrWTX = 0;
+	double WrWTY = 0;
+	double WrWTZ = 0;
+	//parameters for qWT (rotation needed to get from World to Tag coordinate frame)
+	double qWTX = 0;  //Roll
+	double qWTY = 0;	//Pitch
+	double qWTZ = 0;	//yaw
+
+	ros::param::param<bool>("~useExternalCalibration",useExternalCalibration,false);
+	if(!useExternalCalibration)  {
+		//get WrWT vector from ros params
+		ros::param::param<double>("~WrWTX", WrWTX, 0.0);
+		ros::param::param<double>("~WrWTY", WrWTY, 0.0);
+		ros::param::param<double>("~WrWTZ", WrWTZ, 0.0);
+
+		//get qWT from ros params
+		ros::param::param<double>("~qWTX", qWTX, 0.0);
+		ros::param::param<double>("~qWTY", qWTY, 0.0);
+		ros::param::param<double>("~qWTZ", qWTZ, 0.0);
+
+		WrWT.setX(WrWTX);
+		WrWT.setY(WrWTY);
+		WrWT.setZ(WrWTZ);
+		qWT = tf::createQuaternionFromRPY(qWTX,qWTY,qWTZ);
+	}
+	else {
+		ROS_WARN("External calibration was set to true. You are expected to externally publish reference tag data!");
+
 	}
 	message_filters::Subscriber<nav_msgs::Odometry> poseSub(nh, "estimator/filterPose", 2);
 	message_filters::Subscriber<geometry_msgs::PoseWithCovarianceStamped> extrinsicsSub(nh, "estimator/filterExtrinsics", 2);
@@ -292,6 +359,7 @@ int main(int argc, char **argv)
 
 	message_filters::Synchronizer<rcarsStatePublisher> rcarsState(rcarsStatePublisher(10), poseSub, extrinsicsSub, tagSub);
 	rcarsState.registerCallback(boost::bind(&callback, _1, _2, _3));
+
 
 	ros::spin();
 }
