@@ -408,7 +408,8 @@ class TagUpdate: public LWF::Update<TagInnovation<typename FILTERSTATE::mtState>
           filterState.state_.template get<mtState::_aux>().nOutliers_[ind]++;
           if (filterState.state_.template get<mtState::_aux>().nOutliers_[ind] >= outlierCountThreshold_){
             std::cout << "\033[33m WARNING: Orientation outlier detected. Mahalanobis distance: " << outlierDetection.getMahalDistance(0) <<". Resetting orientation for tag "<<tagId<<std::endl;
-            filterState.resetTagOrientationAndCovariance(ind, meas.template get<mtMeas::_aux>().tagAtt_[measInd]);
+//            filterState.resetTagOrientationAndCovariance(ind, meas.template get<mtMeas::_aux>().tagAtt_[measInd]);
+            filterState.resetTagPoseAndCovariance(ind, meas.template get<mtMeas::_aux>().tagPos_[measInd], meas.template get<mtMeas::_aux>().tagAtt_[measInd]);
             filterState.state_.template get<mtState::_aux>().nOutliers_[ind] = 0;
           }
         } else {
