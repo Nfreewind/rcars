@@ -353,18 +353,25 @@ class FilterState: public LWF::FilterState<State<nDynamicTags,nHybridTags>,Predi
    * VrVT and qTV are used for initializing the tag position.
    */
   void makeNewDynamicTag(unsigned int newInd,int tagId,const Eigen::Vector3d& VrVT,const rot::RotationQuaternionPD& qTV){
-    state_.template get<mtState::_dyp>(newInd) = VrVT;
-    state_.template get<mtState::_dya>(newInd) = qTV;
     state_.template get<mtState::_aux>().dynamicIds_[newInd] = tagId;
-    // Reset the covariance terms associated with the new tag state
-    cov_.template block<mtState::D_,3>(0,mtState::template getId<mtState::_dyp>(newInd)).setZero();
-    cov_.template block<3,mtState::D_>(mtState::template getId<mtState::_dyp>(newInd),0).setZero();
-    cov_.template block<mtState::D_,3>(0,mtState::template getId<mtState::_dya>(newInd)).setZero();
-    cov_.template block<3,mtState::D_>(mtState::template getId<mtState::_dya>(newInd),0).setZero();
-    cov_.template block<3,3>(mtState::template getId<mtState::_dyp>(newInd),mtState::template getId<mtState::_dyp>(newInd)) = dynamicTagInitCov_.template block<3,3>(0,0);
-    cov_.template block<3,3>(mtState::template getId<mtState::_dyp>(newInd),mtState::template getId<mtState::_dya>(newInd)) = dynamicTagInitCov_.template block<3,3>(0,3);
-    cov_.template block<3,3>(mtState::template getId<mtState::_dya>(newInd),mtState::template getId<mtState::_dyp>(newInd)) = dynamicTagInitCov_.template block<3,3>(3,0);
-    cov_.template block<3,3>(mtState::template getId<mtState::_dya>(newInd),mtState::template getId<mtState::_dya>(newInd)) = dynamicTagInitCov_.template block<3,3>(3,3);
+    resetTagPoseAndCovariance(newInd,VrVT,qTV);
+  }
+
+  /*!
+   * Reset the tag pose and pose covariance for a specific tag.
+   */
+  void resetTagPoseAndCovariance(int tagIndex, const Eigen::Vector3d& VrVT, const rot::RotationQuaternionPD& qTV){
+    state_.template get<mtState::_dyp>(tagIndex) = VrVT;
+    state_.template get<mtState::_dya>(tagIndex) = qTV;
+    // Reset the covariance terms
+    cov_.template block<mtState::D_,3>(0,mtState::template getId<mtState::_dyp>(tagIndex)).setZero();
+    cov_.template block<3,mtState::D_>(mtState::template getId<mtState::_dyp>(tagIndex),0).setZero();
+    cov_.template block<mtState::D_,3>(0,mtState::template getId<mtState::_dya>(tagIndex)).setZero();
+    cov_.template block<3,mtState::D_>(mtState::template getId<mtState::_dya>(tagIndex),0).setZero();
+    cov_.template block<3,3>(mtState::template getId<mtState::_dyp>(tagIndex),mtState::template getId<mtState::_dyp>(tagIndex)) = dynamicTagInitCov_.template block<3,3>(0,0);
+    cov_.template block<3,3>(mtState::template getId<mtState::_dyp>(tagIndex),mtState::template getId<mtState::_dya>(tagIndex)) = dynamicTagInitCov_.template block<3,3>(0,3);
+    cov_.template block<3,3>(mtState::template getId<mtState::_dya>(tagIndex),mtState::template getId<mtState::_dyp>(tagIndex)) = dynamicTagInitCov_.template block<3,3>(3,0);
+    cov_.template block<3,3>(mtState::template getId<mtState::_dya>(tagIndex),mtState::template getId<mtState::_dya>(tagIndex)) = dynamicTagInitCov_.template block<3,3>(3,3);
   }
 
   /*!
