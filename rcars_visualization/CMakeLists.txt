@@ -40,3 +40,6 @@ target_link_libraries(rcars_tf_publisher_node ${catkin_LIBRARIES})
 
 add_executable(rcars_path_visualization_node src/rcars_path_visualization_node.cpp)
 target_link_libraries(rcars_path_visualization_node ${catkin_LIBRARIES})
+
+add_executable(rcars_loop_closure_evaluation_node src/rcars_loop_closure_evaluation_node.cpp)
+target_link_libraries(rcars_loop_closure_evaluation_node ${catkin_LIBRARIES})

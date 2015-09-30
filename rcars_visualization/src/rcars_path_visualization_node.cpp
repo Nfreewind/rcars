@@ -61,10 +61,26 @@ void publishPath(const nav_msgs::OdometryConstPtr& pose)
 void poseCallback(const nav_msgs::OdometryConstPtr& pose)
 {
 	static size_t framesSkipped = 99999;
+	static double travelledDistance = 0;
 
 	if (framesSkipped >= frameSkip)
 	{
 		publishPath(pose);
+
+		size_t npoints = marker.points.size();
+
+		if (npoints > 10)
+		{
+
+			double dx = marker.points[npoints-1].x - marker.points[npoints-2].x;
+			double dy = marker.points[npoints-1].y - marker.points[npoints-2].y;
+			double dz = marker.points[npoints-1].z - marker.points[npoints-2].z;
+
+			travelledDistance += std::sqrt(dx*dx + dy*dy + dz*dz);
+
+			std::cout << "Travelled distance: "<< travelledDistance << std::endl;
+		}
+
 		framesSkipped = 0;
 	} else
 	{
