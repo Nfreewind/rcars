@@ -1,5 +1,6 @@
 <launch>
-  <param name="/rcars/tagSize" value="0.231" />
+  <param name="/rcars/tagSize" value="0.16" />
+
  
   <node name="image_proc" pkg="image_proc" type="image_proc" ns="/cam0" />
 
