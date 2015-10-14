@@ -203,13 +203,16 @@ int main(int argc, char **argv)
 	image_transport::ImageTransport it(nhPrivate);
 
 	// publisher for image with marked corners (for debugging)
-	std::string topicName;
-	ros::param::param<std::string>("~topicName", topicName, "/cam0");
+	std::string camTopicName;
+	std::string extNodeName;
+
+	ros::param::param<std::string>("~extNodeName", extNodeName, "");
+	ros::param::param<std::string>("~camTopicName", camTopicName, "/cam0");
 
 	detectorPublisher = it.advertise("detectorImage", 1);
 	estimatorPublisher = it.advertise("detectorEstimatorImage", 1);
 
-	message_filters::Subscriber<sensor_msgs::Image> imageSub(nh, topicName + "/camera_downward/image_rect", 2);
+	message_filters::Subscriber<sensor_msgs::Image> imageSub(nh, extNodeName + camTopicName + "/image_rect", 2);
 	message_filters::Subscriber<rcars_detector::TagArray> detectorSub(nh, "detector/tags", 2);
 	message_filters::Subscriber<rcars_detector::TagArray> estimatorSub(nh, "estimator/tagsCameraFrame", 2);
 

@@ -40,12 +40,17 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh, ros::NodeHandl
   camInfoAvailable_ = false;
   referenceTagId_ = -1;
   std::string topicName;
+  std::string camTopicName;
+  std::string imuTopicName;
+  std::string extNodeName;
 
 
   nh_.param<int>("calibrationViewCountThreshold", calibrationViewCountThreshold_, 10);
   nh_.param<bool>("overwriteWorkspace", overwriteWorkspace_, false);
   nh_.param<bool>("initializeWithStaticTagOnly", initializeWithStaticTagOnly_, false);
-  nh_.param<std::string>("topicName", topicName, "/cam0");
+  nh_.param<std::string>("extNodeName", extNodeName, "");
+  nh_.param<std::string>("camTopicName", camTopicName, "/cam0");
+  nh_.param<std::string>("imuTopicName", imuTopicName, "/imu0");
 
   if(!nhRCARS.getParam("tagSize", std::get<0>(mUpdates_).tagSize_))
   {
@@ -72,9 +77,9 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh, ros::NodeHandl
   reset();
 
   // Setup subscribers and publishers
-  subImu_ = nh_.subscribe(topicName + "/imu", 1000, &FilterInterface_RCARS::imuCallback,this);
+  subImu_ = nh_.subscribe(extNodeName + imuTopicName, 1000, &FilterInterface_RCARS::imuCallback,this);
   subTags_ = nhNonPrivate.subscribe("detector/tags", 10, &FilterInterface_RCARS::visionCallback,this);
-  subCameraInfo_ = nh_.subscribe(topicName + "/camera_downward/camera_info", 1, &FilterInterface_RCARS::cameraInfoCallback,this);
+  subCameraInfo_ = nh_.subscribe(extNodeName + camTopicName + "/camera_info", 1, &FilterInterface_RCARS::cameraInfoCallback,this);
   pubTagArrayCameraFrame_ = nh_.advertise<rcars_detector::TagArray>("tagsCameraFrame", 20);
   pubTagArrayInertialFrame_ = nh_.advertise<rcars_detector::TagArray>("tagsInertialFrame",20);
   pubPose_ = nh_.advertise<nav_msgs::Odometry>("filterPose", 20);

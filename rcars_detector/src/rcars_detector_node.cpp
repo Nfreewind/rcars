@@ -237,20 +237,23 @@ int main(int argc, char **argv)
 	// multi threading
 	bool useMultiThreading = false;
 	int nThreads = 0;
-	std::string topicName;
+	std::string extNodeName;
+	std::string camTopicName;
+
 	ros::param::param<bool>("~useMultiThreading", useMultiThreading, false);
 	ros::param::param<int>("~nThreads", nThreads, 0);
-	ros::param::param<std::string>("~topicName", topicName, "/cam0");
+	ros::param::param<std::string>("~extNodeName", extNodeName, "");
+	ros::param::param<std::string>("~camTopicName", camTopicName, "/cam0");
 
 	// subscribe to images
 	int imageQueueSize = 2;
 	if (nThreads > 1)
 		imageQueueSize = nThreads*2;
 	//imageSubscriber = it.subscribe("/wingtra_s001/camera_downward/image_rect", imageQueueSize, imageCallback);
-	imageSubscriber = it.subscribe(topicName + "/image_rect", imageQueueSize, imageCallback);
+	imageSubscriber = it.subscribe(extNodeName + camTopicName + "/image_rect", imageQueueSize, imageCallback);
 
 	// subscribe to camera info
-	cameraInfoSubscriber = nh.subscribe(topicName + "/camera_info", 5, cameraInfoCallback);
+	cameraInfoSubscriber = nh.subscribe(extNodeName + camTopicName + "/camera_info", 5, cameraInfoCallback);
 
 	// publisher for detected tags
 	tagPublisher = nhPrivate.advertise<rcars_detector::TagArray>("tags", 1);
