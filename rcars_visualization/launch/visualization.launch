@@ -1,6 +1,8 @@
 <launch>
-  <node name="visualizer" ns="rcars" pkg="rcars_visualization" type="rcars_image_visualization_node" output="screen" />
-  
+  <node name="visualizer" ns="rcars" pkg="rcars_visualization" type="rcars_image_visualization_node" output="screen">
+    <param name="topicName" value="/wingtra_s001" />
+  </node>
+
   <node name="tf_publisher" ns="rcars" pkg="rcars_visualization" type="rcars_tf_publisher_node" output="screen"> 
     <param name="align_workspace" value="false"/>
   	<param name="frame_rcars" value="rcars_tag54_dyn" />

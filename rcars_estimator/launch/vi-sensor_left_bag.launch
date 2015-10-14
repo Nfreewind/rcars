@@ -1,14 +1,17 @@
 <launch>
-  <param name="/rcars/tagSize" value="0.16" />
+  <arg name="nodeName" default="/wingtra_s001"/>
+  <arg name="camTopicName" default="/camera_downward"/>
+  <param name="/rcars/tagSize" value="0.1" />
 
  
-  <node name="image_proc" pkg="image_proc" type="image_proc" ns="/cam0" />
+  <node name="image_proc" pkg="image_proc" type="image_proc" ns="$(arg nodeName)$(arg camTopicName)" />
 
   <node name="detector" ns="rcars" pkg="rcars_detector" type="rcars_detector_node" output="screen">
      <param name="tagFamily" value="4" />
      <param name="publishDebugImage" value="true" />
      <param name="useMultiThreading" value="true" />
-     <param name="nThreads" value="4" />     
+     <param name="nThreads" value="4" />
+     <param name="topicName" value="$(arg nodeName)$(arg camTopicName)" type="str"/>     
   </node>
   
   <node name="estimator" ns="rcars" pkg="rcars_estimator" type="rcars_estimator_node" output="screen">
@@ -20,6 +23,7 @@
     <param name="calibrationViewCountThreshold" value="10" />
     <param name="workspaceFilename" value="$(find rcars_estimator)/config/workspaces/test.yaml" />
     <param name="autosaveWorkspace" value="false" />
+    <param name="topicName" value="$(arg nodeName)" type="str"/>
     
   </node>
   
