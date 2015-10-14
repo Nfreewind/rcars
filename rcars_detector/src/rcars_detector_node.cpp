@@ -249,7 +249,6 @@ int main(int argc, char **argv)
 	int imageQueueSize = 2;
 	if (nThreads > 1)
 		imageQueueSize = nThreads*2;
-	//imageSubscriber = it.subscribe("/wingtra_s001/camera_downward/image_rect", imageQueueSize, imageCallback);
 	imageSubscriber = it.subscribe(extNodeName + camTopicName + "/image_rect", imageQueueSize, imageCallback);
 
 	// subscribe to camera info
