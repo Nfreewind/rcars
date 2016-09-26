@@ -121,12 +121,18 @@ include_directories(
 add_executable(rcars_estimator_node src/rcars_estimator_node.cpp src/FilterInterface_RCARS.cpp)
 add_executable(rcars_test src/rcars_test.cpp)
 
+add_executable(rcarsToRobotPoseExample src/rcarsToRobotPoseExample.cpp)
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 add_dependencies(rcars_estimator_node rcars_estimator_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(rcars_estimator_node
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(rcarsToRobotPoseExample
   ${catkin_LIBRARIES}
 )
 
