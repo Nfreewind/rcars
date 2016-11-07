@@ -42,11 +42,16 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/PoseArray.h>
 #include <rcars_detector/TagArray.h>
 #include <rcars_detector/TagPoses.h>
 #include <rcars_estimator/FilterStatus.h>
+
+#include <kindr/poses/eigen/HomogeneousTransformation.hpp>
+#include <kindr/rotations/eigen/RotationQuaternion.hpp>
+#include <kindr/rotations/eigen/EulerAnglesXyz.hpp>
 
 class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>{
  public:
@@ -55,6 +60,11 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
    */
   typedef rcars::PredictionMeas mtPredictionMeas;
   typedef typename rcars::TagUpdate<mtFilterState>::mtMeas mtUpdateMeas;
+
+  typedef kindr::poses::eigen_impl::HomogeneousTransformationPosition3RotationQuaternionD Pose;
+  typedef kindr::phys_quant::eigen_impl::Position3D Pos3d;
+  typedef kindr::rotations::eigen_impl::RotationQuaternionPD Quat;
+  typedef kindr::rotations::eigen_impl::EulerAnglesXyzPD EulerXyz;
 
   static constexpr int nTags_ =  mtState::nTags_;
 
@@ -82,6 +92,11 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
    * Callback for service that resets the filter
    */
   bool resetServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
+
+  /*!
+     * Callback for reset robot pose estimator
+     */
+  bool resetRobotPoseServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response);
 
   /*!
    * Callback for service that informs about the filter status
@@ -112,6 +127,16 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
    * Publishes the current tag poses
    */
   void publishTagPoses(void);
+
+  /*!
+   * calculates sensor pose in world based on the sensor info
+   */
+  void tagsCameraFrameToRobotPose(void);
+
+  /*!
+     * Publishes the current sensor pose in world
+  */
+  void publishFullPose(const Eigen::Vector3d& I_x_eigen, const Eigen::Quaterniond& q_CI_eigen);
 
   /*!
    * Safe workspace to config
@@ -202,13 +227,28 @@ class FilterInterface_RCARS: public rcars::FilterRCARS<nDynamicTags,nHybridTags>
   ros::Publisher pubTagArrayInertialFrame_;
   ros::Publisher pubPose_;
   ros::Publisher pubExtrinsics_;
+  ros::Publisher PosePub3D_;	// for publishing the full 3D pose rotated into the robot frame
 
   ros::ServiceServer resetService_;
+  ros::ServiceServer resetRobotPoseEstService_;
   ros::ServiceServer saveWorkspaceService_;
   ros::ServiceServer filterStatusService_;
 
   ros::Time timeOfLastVisionCbck_;
   ros::Time timeOfLastIMUCbck_;
+
+  size_t initId_;			// the id of the first frame listed in the message
+  Pose q_TI_;
+
+  bool initializedSensorPoseEst_;
+
+  Eigen::Vector3d C_x_eigen; // offset of the VI sensor from the robot center
+  Eigen::Vector3d C_phi_eigen; // offset of the VI sensor from the robot center roll pitch yaw
+
+
+  std::vector<EulerXyz> 	eulerAnglesStock; // to average init pose
+  std::vector<Pos3d> 		positionStock;
+  size_t 					numSamplesAveragedForInitPose;
 };
 
 #endif /* FilterInterface_RCARS_HPP_ */

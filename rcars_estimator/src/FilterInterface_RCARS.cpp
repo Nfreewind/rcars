@@ -52,6 +52,14 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh, ros::NodeHandl
   nh_.param<std::string>("camTopicName", camTopicName, "/cam0");
   nh_.param<std::string>("imuTopicName", imuTopicName, "/imu0");
 
+  nh_.param<double>("cam_offset_x", C_x_eigen(0), 0.0);
+  nh_.param<double>("cam_offset_y", C_x_eigen(1), 0.0);
+  nh_.param<double>("cam_offset_z", C_x_eigen(2), 0.0);
+  nh_.param<double>("cam_offset_roll", C_phi_eigen(0), 0.0);
+  nh_.param<double>("cam_offset_pitch", C_phi_eigen(1), 0.0);
+  nh_.param<double>("cam_offset_yaw", C_phi_eigen(2), 0.0);
+
+
   if(!nhRCARS.getParam("tagSize", std::get<0>(mUpdates_).tagSize_))
   {
 	  ROS_FATAL("tagSize parameter not set. Cannot estimate without tagSize. Please add it to the ROS parameter server or configFile");
@@ -84,8 +92,10 @@ FilterInterface_RCARS::FilterInterface_RCARS(ros::NodeHandle& nh, ros::NodeHandl
   pubTagArrayInertialFrame_ = nh_.advertise<rcars_detector::TagArray>("tagsInertialFrame",20);
   pubPose_ = nh_.advertise<nav_msgs::Odometry>("filterPose", 20);
   pubExtrinsics_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("filterExtrinsics", 20);
+  PosePub3D_ =nh_.advertise<geometry_msgs::PoseStamped>("/FullSensorPose", 2);
 
   resetService_ = nh_.advertiseService("reset", &FilterInterface_RCARS::resetServiceCallback, this);
+  resetRobotPoseEstService_ = nh_.advertiseService("resetRobotPoseEst", &FilterInterface_RCARS::resetRobotPoseServiceCallback, this);
   saveWorkspaceService_ = nh_.advertiseService("saveWorkspace", &FilterInterface_RCARS::saveWorkspaceCallback, this);
   filterStatusService_ = nh_.advertiseService("getFilterStatus", &FilterInterface_RCARS::getFilterStatusCallback, this);
 }
@@ -238,6 +248,12 @@ void FilterInterface_RCARS::saveWorkspace()
 	}
 }
 
+bool FilterInterface_RCARS::resetRobotPoseServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response)
+{
+	initializedSensorPoseEst_ = false;
+	return true;
+}
+
 bool FilterInterface_RCARS::resetServiceCallback(std_srvs::Empty::Request& request, std_srvs::Empty::Response& response)
 {
 	clean(0);
@@ -263,6 +279,8 @@ bool FilterInterface_RCARS::resetServiceCallback(std_srvs::Empty::Request& reque
 
 	timeOfLastVisionCbck_ = ros::Time(0);
 	timeOfLastIMUCbck_ = timeOfLastVisionCbck_;
+
+	initializedSensorPoseEst_ = false;
 
 	return true;
 }
@@ -561,3 +579,112 @@ void FilterInterface_RCARS::publishTagPoses(void)
 	pubTagArrayInertialFrame_.publish(tagArrayInertialFrameMsg);
 }
 
+
+void FilterInterface_RCARS::tagsCameraFrameToRobotPose(void){
+
+	Quat q_CP(EulerXyz(C_phi_eigen(0), C_phi_eigen(1), C_phi_eigen(2)));
+	q_CP.invert();
+
+	Pos3d position(
+			-get_VrVT_dyn_safe(0)(0),
+			-get_VrVT_dyn_safe(0)(1),
+			-get_VrVT_dyn_safe(0)(2));
+
+	Quat quatEigen(
+			get_qTV_dyn_safe(0).w(),
+			get_qTV_dyn_safe(0).x(),
+			get_qTV_dyn_safe(0).y(),
+			get_qTV_dyn_safe(0).z());
+
+	Pose newPoseIn(quatEigen.rotate(position), quatEigen);
+
+	newPoseIn.getRotation() = newPoseIn.getRotation()*q_CP;
+
+
+	if(!initializedSensorPoseEst_)
+	{
+		initId_  =  safe_.state_.template get<mtState::_aux>().dynamicIds_[0];
+
+
+		// collecting samples for init pose trafo averaging
+		if(eulerAnglesStock.size() < numSamplesAveragedForInitPose){
+			EulerXyz temp ((newPoseIn.getRotation()).getUnique());
+			eulerAnglesStock.push_back(temp);
+			positionStock.push_back(newPoseIn.getPosition());
+		}
+		else if (eulerAnglesStock.size() == numSamplesAveragedForInitPose){
+			// average euler angles
+			double alpha_avg, beta_avg, gamma_avg;
+			double alpha_sum = 0.0;
+			double beta_sum = 0.0;
+			double gamma_sum = 0.0;
+			Pos3d pos_sum (0, 0, 0);
+			Pos3d pos_avg;
+
+			for(size_t i = 0; i < eulerAnglesStock.size(); i++){
+				alpha_sum += eulerAnglesStock[i].toImplementation()(0);
+				beta_sum  += eulerAnglesStock[i].toImplementation()(1);
+				gamma_sum += eulerAnglesStock[i].toImplementation()(2);
+				pos_sum += positionStock[i];
+			}
+
+			alpha_avg = alpha_sum / eulerAnglesStock.size();
+			beta_avg  = beta_sum / eulerAnglesStock.size();
+			gamma_avg = gamma_sum / eulerAnglesStock.size();
+			EulerXyz eulerAveraged (alpha_avg, beta_avg, gamma_avg);
+			pos_avg = pos_sum / positionStock.size();
+
+			q_TI_.getPosition() = pos_avg;
+
+			Quat ttemp (eulerAveraged);
+			q_TI_.getRotation() = ttemp;
+
+			initializedSensorPoseEst_ = true;
+		}
+		else
+			throw std::runtime_error("initialization of rcars to basepose failed");
+
+
+		return;
+	}
+
+	if(initId_ != safe_.state_.template get<mtState::_aux>().dynamicIds_[0])
+		throw std::runtime_error("TAG id's of first tag in message and the originally selected ref-frame not matching.");
+
+
+	Pose q_TC_ = newPoseIn;
+
+	Pos3d C_x(C_x_eigen);
+
+	// T_x = q_TC * C_x
+	Pos3d T_x = q_TC_.transform(C_x);
+
+
+	// I_x = q_IT * T_x
+	Pos3d I_x = q_TI_.inverseTransform(T_x);
+
+	Quat q_CT = q_TC_.getRotation().inverted();
+
+	//q_CI = q_IT * q_CT
+	Quat q_CI = q_CT * q_TI_.getRotation();
+
+	// transcribe to eigen types and publish for reference
+	Eigen::Vector3d I_x_eigen 	= I_x.toImplementation();
+	Eigen::Quaterniond q_CI_eigen = q_CI.toImplementation();
+	publishFullPose(I_x_eigen, q_CI_eigen);
+
+}
+
+void FilterInterface_RCARS::publishFullPose(const Eigen::Vector3d& I_x_eigen, const Eigen::Quaterniond& q_CI_eigen){
+
+	geometry_msgs::PoseStamped testMsg;
+	testMsg.header.frame_id = "/world";
+	testMsg.pose.position.x = I_x_eigen(0);
+	testMsg.pose.position.y = I_x_eigen(1);
+	testMsg.pose.position.z = I_x_eigen(2);
+	testMsg.pose.orientation.w = q_CI_eigen.w();
+	testMsg.pose.orientation.x = q_CI_eigen.x();
+	testMsg.pose.orientation.y = q_CI_eigen.y();
+	testMsg.pose.orientation.z = q_CI_eigen.z();
+	PosePub3D_.publish(testMsg);
+}
