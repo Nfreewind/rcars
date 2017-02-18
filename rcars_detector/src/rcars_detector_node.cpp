@@ -7,8 +7,7 @@
 
 #include <cv_bridge/cv_bridge.h>
 
-#include <kindr/rotations/RotationEigen.hpp>
-#include <kindr/poses/eigen/HomogeneousTransformation.hpp>
+#include <kindr/Core>
 
 #include <apriltag/TagDetector.hpp>
 #include <apriltag/TagFamily.hpp>
@@ -29,10 +28,6 @@ using namespace std;
 
 namespace AprilTags = april::tag;
 
-// namespace aliasing for kindr library
-namespace rot = kindr::rotations::eigen_impl;
-namespace pose = kindr::poses::eigen_impl;
-namespace phys = kindr::phys_quant::eigen_impl;
 
 // helper function to convert a number to a string
 template <typename T>
@@ -110,17 +105,17 @@ void fillRosMessage(const vector<AprilTags::TagDetection>& detections, rcars_det
 			Eigen::Matrix4d T_ct= dd.getRelativeTransform(tagSize, camInfo.P[0], camInfo.P[5], camInfo.P[2], camInfo.P[6]);
 
 			// extract the translation vector and normalize the homogeneous coordinates
-			phys::Position3D pos(T_ct.block<3,1>(0,3)/T_ct(3,3));
+			kindr::Position3D pos(T_ct.block<3,1>(0,3)/T_ct(3,3));
 
 			// extract the rotatoin matrix
-			rot::RotationMatrixPD rotationMatrix(T_ct.block<3,3>(0,0));
+			kindr::RotationMatrixPD rotationMatrix(T_ct.block<3,3>(0,0));
 
 			// convert the rotation matrix to a quaternion
-			rot::RotationQuaternionPD quat(rotationMatrix);
+			kindr::RotationQuaternionPD quat(rotationMatrix);
 			quat.invert();
 
 			// combine again to a transformation using kindr
-			pose::HomogeneousTransformationPosition3RotationQuaternionD trans(pos, quat);
+			kindr::HomogeneousTransformationPosition3RotationQuaternionD trans(pos, quat);
 
 			// copy the translation
 			tag.pose.position.x = trans.getPosition().x();

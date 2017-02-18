@@ -38,7 +38,7 @@ generate_messages(
 
 catkin_package(
    INCLUDE_DIRS
-   CATKIN_DEPENDS cv_bridge roscpp geometry_msgs image_transport
+   CATKIN_DEPENDS cv_bridge roscpp geometry_msgs image_transport kindr
    CATKIN_DEPENDS message_runtime
 )
 
